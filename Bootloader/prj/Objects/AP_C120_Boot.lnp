@@ -1,0 +1,17 @@
+--cpu Cortex-M0
+".\objects\startup_stm32f030.o"
+".\objects\system_stm32f0xx.o"
+".\objects\stm32f0xx_flash.o"
+".\objects\stm32f0xx_gpio.o"
+".\objects\stm32f0xx_misc.o"
+".\objects\stm32f0xx_rcc.o"
+".\objects\stm32f0xx_syscfg.o"
+".\objects\stm32f0xx_tim.o"
+".\objects\stm32f0xx_usart.o"
+".\objects\stm32f0xx_iwdg.o"
+".\objects\main.o"
+".\objects\stm32f0xx_it.o"
+--strict --scatter ".\Objects\AP_C120_Boot.sct"
+--summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\AP_C120_Boot.map" -o .\Objects\AP_C120_Boot.axf

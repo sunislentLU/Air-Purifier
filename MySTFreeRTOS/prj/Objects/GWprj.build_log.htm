@@ -1,0 +1,241 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.12.0.0
+Copyright (C) 2014 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: W X, T, LIC=9N0WF-6QKH5-PF0IX-H8P1T-CULX6-PA4Q2
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Professional  Version: 5.12.0.0
+Toolchain Path:  D:\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.05 (build 41)
+Assembler:       Armasm.exe V5.05 (build 41)
+Linker/Locator:  ArmLink.exe V5.05 (build 41)
+Library Manager: ArmAr.exe V5.05 (build 41)
+Hex Converter:   FromElf.exe V5.05 (build 41)
+CPU DLL:         SARMCM3.DLL V5.12.0.0
+Dialog DLL:      DARMCM1.DLL V1.11.00.0
+    Target DLL: Segger\JL2CM3.dll
+Dialog DLL:      TARMCM1.DLL V1.08.00.0
+ 
+<h2>Project:</h2>
+E:\WorkPlace\AC120\MySTFreeRTOS\prj\AP-C120.uvprojx
+Project File Date:  06/22/2017
+
+<h2>Output:</h2>
+Build target 'AP-C120'
+compiling mainTask.c...
+..\Task\mainTask.c(131): warning:  #188-D: enumerated type mixed with another type
+                                  runningValue.timingLevel =timingTable[runningValue.timingLevel];
+..\Task\mainTask.c(326): warning:  #188-D: enumerated type mixed with another type
+        mOutputMsg->outputMsg = buzType;
+..\Task\mainTask.c: 2 warnings, 0 errors
+linking...
+Program Size: Code=16064 RO-data=680 RW-data=340 ZI-data=6164  
+After Build - User command #1: fromelf.exe --bin -o ../bin/app.bin  ../prj/Objects/AP-C120.axf
+".\Objects\AP-C120.axf" - 0 Error(s), 2 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+Load "E:\\WorkPlace\\AC120\\MySTFreeRTOS\\prj\\Objects\\AP-C120.axf" 
+Set JLink Project File to "E:\WorkPlace\AC120\MySTFreeRTOS\prj\JLinkSettings.ini"
+* JLink Info: Device "STM32F030C8" selected (64 KB flash, 8 KB RAM).
+ 
+JLink info:
+------------
+DLL: V4.91b, compiled Sep 15 2014 09:17:56
+Firmware: J-Link ARM-OB STM32 compiled Aug 22 2012 19:52:04
+Hardware: V7.00
+S/N : 20160117 
+Feature(s) : RDI,FlashDL,FlashBP,JFlash,GDBFull 
+ 
+* JLink Info: Found SWD-DP with ID 0x0BB11477
+* JLink Info: Found SWD-DP with ID 0x0BB11477
+* JLink Info: Found Cortex-M0 r0p0, Little endian.
+* JLink Info: FPUnit: 4 code (BP) slots and 0 literal slots
+ROMTableAddr = 0xE00FF003
+ 
+Target info:
+------------
+Device: STM32F030C8
+VTarget = 3.300V
+State of Pins: 
+TCK: 0, TDI: 0, TDO: 1, TMS: 0, TRES: 1, TRST: 1
+Hardware-Breakpoints: 4
+Software-Breakpoints: 8192
+Watchpoints:          2
+JTAG speed: 2000 kHz
+ 
+Erase Done.
+Programming Done.
+Verify OK.
+72 RO-data=680 RW-data=340 ZI-data=6164  
+".\Objects\GWprj.axf" - 0 Error(s), 3 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+compiling bspInput.c...
+"..\bsp\bspInput.c" - 0 Error(s), 0 Warning(s).
+compiling device_outputTask.c...
+"..\Task\device_outputTask.c" - 0 Error(s), 0 Warning(s).
+ Files used:</h2>
+compiling device_outputTask.c...
+..\Task\device_outputTask.c(240): error:  #20: identifier "_eBUZ_TYPE" is undefined
+        outputVariable.buzType = (_eBUZ_TYPE)buztype;
+..\Task\device_outputTask.c(240): error:  #65: expected a ";"
+        outputVariable.buzType = (_eBUZ_TYPE)buztype;
+..\Task\device_outputTask.c: 0 warnings, 2 errors
+"..\Task\device_outputTask.c" - 2 Error(s), 0 Warning(s).
+compiling device_outputTask.c...
+"..\Task\device_outputTask.c" - 0 Error(s), 0 Warning(s).
+int8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(13): error:  #114: function "BubbleSort" was referenced but not defined
+  static void BubbleSort(uint16_t*buffer,uint8_t length);
+..\Task\device_inputTask.c(178): warning:  #177-D: function "SpeedScanProcess" was declared but never referenced
+  static void SpeedScanProcess(void)
+..\Task\device_inputTask.c: 7 warnings, 14 errors
+compiling bspInput.c...
+".\Objects\GWprj.axf" - 14 Error(s), 7 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+Target not created.
+compiling device_inputTask.c...
+..\Task\device_inputTask.c(185): warning:  #223-D: function "GetFanPeriod" declared implicitly
+                speedValue = GetFanPeriod();
+..\Task\device_inputTask.c(275): warning:  #223-D: function "GetTempHumValue" declared implicitly
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(275): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(275): error:  #20: identifier "temp" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(275): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(275): error:  #20: identifier "hum" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(273): warning:  #177-D: variable "humiCnt" was declared but never referenced
+        static uint8_t humiCnt= 0;
+..\Task\device_inputTask.c(291): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(326): warning:  #12-D: parsing restarts here after previous syntax error
+                                        buffer[j] = buffer[j-1];
+..\Task\device_inputTask.c(327): error:  #20: identifier "j" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(327): error:  #20: identifier "tmp" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(328): error:  #169: expected a declaration
+                                }
+..\Task\device_inputTask.c(331): error:  #169: expected a declaration
+        }
+..\Task\device_inputTask.c(460): warning:  #12-D: parsing restarts here after previous syntax error
+  return 0;
+..\Task\device_inputTask.c(461): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(489): warning: At end of source:  #12-D: parsing restarts here after previous syntax error
+..\Task\device_inputTask.c(8): error:  #114: function "DustValueProcess" was referenced but not defined
+  static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(9): error:  #114: function "GasValueProcess" was referenced but not defined
+  static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(10): error:  #114: function "LumiValueProcess" was referenced but not defined
+  static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(13): error:  #114: function "BubbleSort" was referenced but not defined
+  static void BubbleSort(uint16_t*buffer,uint8_t length);
+..\Task\device_inputTask.c(178): warning:  #177-D: function "SpeedScanProcess" was declared but never referenced
+  static void SpeedScanProcess(void)
+..\Task\device_inputTask.c: 7 warnings, 14 errors
+"..\Task\device_inputTask.c" - 14 Error(s), 7 Warning(s).
+compiling bspOutput.c...
+"..\bsp\bspOutput.c" - 0 Error(s), 0 Warning(s).
+compiling device_inputTask.c...
+..\Task\device_inputTask.c(276): warning:  #223-D: function "GetTempHumValue" declared implicitly
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(276): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(276): error:  #20: identifier "temp" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(276): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(276): error:  #20: identifier "hum" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(274): warning:  #177-D: variable "humiCnt" was declared but never referenced
+        static uint8_t humiCnt= 0;
+..\Task\device_inputTask.c(292): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(327): warning:  #12-D: parsing restarts here after previous syntax error
+                                        buffer[j] = buffer[j-1];
+..\Task\device_inputTask.c(328): error:  #20: identifier "j" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(328): error:  #20: identifier "tmp" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(329): error:  #169: expected a declaration
+                                }
+..\Task\device_inputTask.c(332): error:  #169: expected a declaration
+        }
+..\Task\device_inputTask.c(461): warning:  #12-D: parsing restarts here after previous syntax error
+  return 0;
+..\Task\device_inputTask.c(462): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(490): warning: At end of source:  #12-D: parsing restarts here after previous syntax error
+..\Task\device_inputTask.c(9): error:  #114: function "DustValueProcess" was referenced but not defined
+  static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(10): error:  #114: function "GasValueProcess" was referenced but not defined
+  static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(11): error:  #114: function "LumiValueProcess" was referenced but not defined
+  static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(14): error:  #114: function "BubbleSort" was referenced but not defined
+  static void BubbleSort(uint16_t*buffer,uint8_t length);
+..\Task\device_inputTask.c(179): warning:  #177-D: function "SpeedScanProcess" was declared but never referenced
+  static void SpeedScanProcess(void)
+..\Task\device_inputTask.c: 6 warnings, 14 errors
+"..\Task\device_inputTask.c" - 14 Error(s), 6 Warning(s).
+compiling device_inputTask.c...
+..\Task\device_inputTask.c(277): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(277): error:  #20: identifier "temp" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(277): error:  #254: type name is not allowed
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(277): error:  #20: identifier "hum" is undefined
+                tempValueBuf[tempCnt] = GetTempHumValue(uint16_t * temp, uint16_t * hum);
+..\Task\device_inputTask.c(275): warning:  #177-D: variable "humiCnt" was declared but never referenced
+        static uint8_t humiCnt= 0;
+..\Task\device_inputTask.c(293): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(328): warning:  #12-D: parsing restarts here after previous syntax error
+                                        buffer[j] = buffer[j-1];
+..\Task\device_inputTask.c(329): error:  #20: identifier "j" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(329): error:  #20: identifier "tmp" is undefined
+                                        buffer[j-1] = tmp;
+..\Task\device_inputTask.c(330): error:  #169: expected a declaration
+                                }
+..\Task\device_inputTask.c(333): error:  #169: expected a declaration
+        }
+..\Task\device_inputTask.c(462): warning:  #12-D: parsing restarts here after previous syntax error
+  return 0;
+..\Task\device_inputTask.c(463): error:  #169: expected a declaration
+  }
+..\Task\device_inputTask.c(491): warning: At end of source:  #12-D: parsing restarts here after previous syntax error
+..\Task\device_inputTask.c(10): error:  #114: function "DustValueProcess" was referenced but not defined
+  static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(11): error:  #114: function "GasValueProcess" was referenced but not defined
+  static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(12): error:  #114: function "LumiValueProcess" was referenced but not defined
+  static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+..\Task\device_inputTask.c(15): error:  #114: function "BubbleSort" was referenced but not defined
+  static void BubbleSort(uint16_t*buffer,uint8_t length);
+..\Task\device_inputTask.c(180): warning:  #177-D: function "SpeedScanProcess" was declared but never referenced
+  static void SpeedScanProcess(void)
+..\Task\device_inputTask.c: 5 warnings, 14 errors
+"..\Task\device_inputTask.c" - 14 Error(s), 5 Warning(s).

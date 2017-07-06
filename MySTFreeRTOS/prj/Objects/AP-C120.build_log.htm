@@ -1,0 +1,130 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.12.0.0
+Copyright (C) 2014 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: W X, T, LIC=9N0WF-6QKH5-PF0IX-H8P1T-CULX6-PA4Q2
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Professional  Version: 5.12.0.0
+Toolchain Path:  D:\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.05 (build 41)
+Assembler:       Armasm.exe V5.05 (build 41)
+Linker/Locator:  ArmLink.exe V5.05 (build 41)
+Library Manager: ArmAr.exe V5.05 (build 41)
+Hex Converter:   FromElf.exe V5.05 (build 41)
+CPU DLL:         SARMCM3.DLL V5.12.0.0
+Dialog DLL:      DARMCM1.DLL V1.11.00.0
+    Target DLL: Segger\JL2CM3.dll
+Dialog DLL:      TARMCM1.DLL V1.08.00.0
+ 
+<h2>Project:</h2>
+E:\WorkPlace\AC120\MySTFreeRTOS\prj\AP-C120.uvprojx
+Project File Date:  06/30/2017
+
+<h2>Output:</h2>
+Build target 'AP-C120'
+compiling wifi_Task.c...
+linking...
+Program Size: Code=17692 RO-data=720 RW-data=344 ZI-data=6168  
+After Build - User command #1: fromelf.exe --bin -o ../bin/app.bin  ../prj/Objects/AP-C120.axf
+".\Objects\AP-C120.axf" - 0 Error(s), 0 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+ling stm32f0xx_syscfg.c...
+compiling stm32f0xx_tim.c...
+compiling stm32f0xx_usart.c...
+compiling croutine.c...
+compiling event_groups.c...
+compiling heap_4.c...
+compiling list.c...
+compiling port.c...
+compiling queue.c...
+compiling tasks.c...
+compiling timers.c...
+compiling main.c...
+compiling stm32f0xx_it.c...
+compiling wifiProtocol.c...
+compiling fifo.c...
+compiling device_inputTask.c...
+compiling device_outputTask.c...
+compiling mainTask.c...
+compiling wifi_Task.c...
+..\Task\wifi_Task.c(330): warning:  #188-D: enumerated type mixed with another type
+                                                         wifiRecMsg->wifiMsg = (*dataPointer) + WIFI_MSG_MODE;// index begin at 0 my command or element begin at 1
+..\Task\wifi_Task.c: 1 warning, 0 errors
+compiling bspInput.c...
+compiling bspOutput.c...
+compiling bspWifi.c...
+compiling hdc1080.c...
+compiling key.c...
+compiling pms7003i.c...
+linking...
+Program Size: Code=17692 RO-data=720 RW-data=344 ZI-data=6168  
+After Build - User command #1: fromelf.exe --bin -o ../bin/app.bin  ../prj/Objects/AP-C120.axf
+".\Objects\AP-C120.axf" - 0 Error(s), 1 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+x begin at 0 my command or element begin at 1
+..\Task\wifi_Task.c: 1 warning, 0 errors
+compiling bspInput.c...
+compiling bspOutput.c...
+compiling bspWifi.c...
+compiling hdc1080.c...
+compiling key.c...
+compiling pms7003i.c...
+linking...
+Program Size: Code=17588 RO-data=720 RW-data=336 ZI-data=6168  
+After Build - User command #1: fromelf.exe --bin -o ../bin/app.bin  ../prj/Objects/AP-C120.axf
+".\Objects\AP-C120.axf" - 0 Error(s), 5 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  E:\WorkPlace\AC120\MySTFreeRTOS\prj\RTE
+  D:\Keil_v5\ARM\PACK\Keil\STM32F0xx_DFP\1.5.0
+
+<h2>Collection of Component Files used:</h2>
+Load "E:\\WorkPlace\\AC120\\MySTFreeRTOS\\prj\\Objects\\AP-C120.axf" 
+Set JLink Project File to "E:\WorkPlace\AC120\MySTFreeRTOS\prj\JLinkSettings.ini"
+* JLink Info: Device "STM32F030C8" selected (64 KB flash, 8 KB RAM).
+ 
+JLink info:
+------------
+DLL: V4.91b, compiled Sep 15 2014 09:17:56
+Firmware: J-Link ARM-OB STM32 compiled Aug 22 2012 19:52:04
+Hardware: V7.00
+S/N : 20160117 
+Feature(s) : RDI,FlashDL,FlashBP,JFlash,GDBFull 
+ 
+* JLink Info: Found SWD-DP with ID 0x0BB11477
+* JLink Info: Found SWD-DP with ID 0x0BB11477
+* JLink Info: Found Cortex-M0 r0p0, Little endian.
+* JLink Info: FPUnit: 4 code (BP) slots and 0 literal slots
+ROMTableAddr = 0xE00FF003
+ 
+Target info:
+------------
+Device: STM32F030C8
+VTarget = 3.300V
+State of Pins: 
+TCK: 0, TDI: 0, TDO: 1, TMS: 0, TRES: 1, TRST: 1
+Hardware-Breakpoints: 4
+Software-Breakpoints: 8192
+Watchpoints:          2
+JTAG speed: 2000 kHz
+ 
+Erase Done.
+Programming Done.
+Verify OK.
+one.
+Programming Done.
+Verify OK.
