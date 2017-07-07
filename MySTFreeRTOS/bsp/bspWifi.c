@@ -56,15 +56,3 @@ void WifiUartInit(void)
 
 
 
-//void CheckFifoSendFirstData(_sFIFO* fifo)
-//{
-// uint8_t sendData;
-// if(fifo->count !=0)
-// {
-//  while(USART_GetFlagStatus(WIFI_UART,USART_FLAG_TXE) == RESET)
-//  	;
-//  PopFromFifo(fifo,&sendData);
-//  USART_SendData(WIFI_UART,sendData);
-// }
-//}
-

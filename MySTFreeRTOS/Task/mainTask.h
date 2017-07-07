@@ -26,8 +26,11 @@
 #define DEFAULT_LUMIN_DARK    100
 #define DEFAULT_LUMIN_LIGHT   500
 
-
+#define DEFAULT_RESET_HOUR      0
 #define DEFAULT_MAX_USE_HOUR   5000
+
+#define DEFAULT_GAS_BASE       100
+
 
 
 #define DEFAULT_MODE           MODE_STANDBY// MODE_AUTO// 
@@ -110,25 +113,32 @@ uint16_t gasGoodRef;// gas adc good reference
 uint16_t gasFineRef;// gas adc fin reference
 uint16_t gasBadRef;// gas adc value bad reference
 }_sGAS_REFERENCE;
+typedef struct
+{
+	uint16_t luminDark;
+	uint16_t luminLight;
+}_sLUMIN_REF;
+
+typedef struct
+{
+ uint16_t filterHoursCnt;
+ uint16_t maxFilterHours;
+}_sFILTERLIVE;
 
 typedef struct
 {
 _sSPEED_REFERENCE speedRef;
 _sDUST_REFERENCE dustRef;
 _sGAS_REFERENCE gasRef;
-uint16_t filterTimeRef;
-uint16_t filterTime;
+_sAUTOSPD_REF  atuoSpdRef;
+_sLUMIN_REF lumiRef;
+_sFILTERLIVE filterVar;
 uint16_t workingTime;
-uint8_t dustSen;
+uint16_t dustSen;
 uint16_t gasBase;
+uint16_t softVersion;
 }_sREFERENCE_VALUE;
 
-
-typedef struct
-{
-	uint16_t luminDark;
-	uint16_t luminLight;
-}_sLUMIN_REF;
 typedef enum
 {
 TIMING_LEVEL_NONE = 0x00,
@@ -169,13 +179,6 @@ uint16_t gasValue;// current gas value adc value
 uint16_t lumin;
 uint8_t netStatus;
 }_sRUNNINGVALUE;
-
-typedef struct
-{
- uint16_t filterHoursCnt;
- uint16_t maxFilterHours;
-}_sFILTERLIVE;
-
 
 #endif
 

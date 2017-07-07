@@ -49,7 +49,7 @@ void TransmitTermData(uint8_t term_id,const _sTERMI_FORMAT* datacmd,uint8_t* sen
 void TransmitAllTermData(const _sTERMI_FORMAT* datacmd,uint8_t* sendbuffer,_sFIFO* sendfifo,uint8_t sendType);
 void ClearReceiveBuffer(void);
 void CheckFifoSendFirstData(_sFIFO* fifo);
-
+void GetUpdateStatus(void);
 
 xQueueHandle wifiRecQueue;
 xQueueHandle wifiSndQueue;
@@ -351,6 +351,17 @@ void WIFITask(void* arg)
 								}
 							 }
 							 break;
+							 case CMD_ASK_UPDATE:// 0x30 command 
+							 if(*dataPointer == 0x01)//new state
+							 {
+							 	dataPointer++;
+							 	wifiRecMsg->wifiMsg = WIFI_MSG_UPDATE;
+							 	wifiRecMsg->length = 0x06;
+								wifiRecMsg->wifiMsgParam = dataPointer;
+								xQueueSend(wifiRecQueue,wifiRecMsg,0);
+							 }
+
+							 break;
 						 }
 						 							 
 					 }
@@ -359,9 +370,15 @@ void WIFITask(void* arg)
 		}else
 		{
 			chkNetCnt++;
+						    
+			if(chkNetCnt == 10)			    
+			{					
+				if(xSemaphoreTake(semSendEnable, 2))
+						GetUpdateStatus();
+			}
 			if(chkNetCnt == 20)// two second to check net satus
 			{
-				chkNetCnt = 0;
+			chkNetCnt = 0;
 		   if(xSemaphoreTake(semSendEnable, 2))
 		   SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
 			}
@@ -408,6 +425,9 @@ void WIFITask(void* arg)
 							}
 						}
 					}
+					break;
+				case WIFI_UP_FIRM:
+					
 					break;
 			  default:
 				break;
@@ -650,18 +670,10 @@ void FetchTimingValue(uint8_t* buffer)
  TermDataStruct(TERM_TIMING,buffer);
 }
 
-//void FetchUsingTime(uint8_t* buffer)
-//{
-//}
-
 void FetchFilterTime(uint8_t* buffer)
 {
  TermDataStruct(TERM_FILTERLIVE,buffer);
 }
-
-//void FetchFilterState(uint8_t* buffer)
-//{
-//}
 
 void FetchSpeedRef(uint8_t* buffer)
 {
@@ -891,6 +903,51 @@ void CheckFifoSendFirstData(_sFIFO* fifo)
 }
 
 
+typedef enum
+{
+	UPDATE_TYPE_NONE = 0x00,
+	UPDATE_TYPE_WIFI,
+	UPDATE_TYPE_MCU,
+	UPDATE_TYPE_SUB
+}_eUPDATE_TYPE;
 
+#define DEV_DESCRIPTION   0x00000001
 
+void GetUpdateStatus(void)
+{
+	uint8_t checksum;
+	uint8_t sendType;
+	uint8_t updateType;
+	uint16_t upVersion;
+	uint32_t description;
+	uint8_t* pointer;
+	updateType = UPDATE_TYPE_MCU;
+	upVersion = 0x01;  // get version
+	description = DEV_DESCRIPTION;
+	checksum = 0;
+	checksum  ^=0x09;// 2byte + 7byte (type  version description)
+	sendType = CMD_ASK_UPDATE;
+	checksum ^= sendType;
+	PushInFifo(uartSendFifo,HEAD);
+	PushInFifo(uartSendFifo,0x00);   
+	PushInFifo(uartSendFifo, 0x09);	 
+	PushInFifo(uartSendFifo,sendType);
+	checksum ^= updateType;
+	PushInFifo(uartSendFifo,updateType);
+	checksum ^=upVersion;
+	PushInFifo(uartSendFifo,upVersion>>8);
+	PushInFifo(uartSendFifo,upVersion);
+	pointer = (uint8_t*)&description;	
+	checksum ^=*pointer++;
+	checksum ^=*pointer++;
+	checksum ^=*pointer++;
+	checksum ^=*pointer++;
+	PushInFifo(uartSendFifo,(uint8_t)(description>>24));
+	PushInFifo(uartSendFifo,(uint8_t)(description>>16));
+	PushInFifo(uartSendFifo,(uint8_t)(description>>8));
+	PushInFifo(uartSendFifo,(uint8_t)(description));
+	PushInFifo(uartSendFifo,checksum);
+	PushInFifo(uartSendFifo,END);
+	CheckFifoSendFirstData(uartSendFifo);
+}
 

@@ -12,19 +12,25 @@ static void MainSetBuzzer(uint8_t buzType);
 static void SecondLoopProcess(void);
 extern void LoopTimerInit(_sLOOPTIMER* timer,uint16_t interval);
 extern uint8_t CheckTickExpired(_sLOOPTIMER* timer);
+void ReadGlobalParameter(void);
+void SaveGlobalParameter(void);
 /*********************variables****************/
 _sINPUT_MSG* mInputMsg;
 _sWIFI_REC_MSG* mWifiRecMsg;
 _sWIFI_SND_MSG* mWifiSndMsg;
 _sOUTPUT_MSG* mOutputMsg;
 _sRUNNINGVALUE runningValue;
-_sFILTERLIVE filterLive;
-_sSPEED_REFERENCE spdRef;
-_sAUTOSPD_REF autoSpdRef;
-_sDUST_REFERENCE dustRef;
-_sGAS_REFERENCE  gasRef;
-_sLUMIN_REF  luminRef;
+_sREFERENCE_VALUE globalParameter;
 
+
+//_sFILTERLIVE filterLive;
+//_sSPEED_REFERENCE spdRef;
+//_sAUTOSPD_REF autoSpdRef;
+//_sDUST_REFERENCE dustRef;
+//_sGAS_REFERENCE  gasRef;
+//_sLUMIN_REF  luminRef;
+
+//uint16_t gasadjBase;
 
 
 extern xQueueHandle inputMsgQueue;
@@ -50,6 +56,7 @@ const _sDUST_REFERENCE dustRefDefault={DEFAULT_DUST_GOOD_REF,DEFAULT_DUST_FINE_R
 const _sGAS_REFERENCE  gasRefDefault = {DEFAULT_GAS_GOOD_REF,DEFAULT_GAS_FINE_REF,DEFAULT_GAS_BAD_REF};
 const uint8_t timingTable[4]={TIMING_LEVEL_0,TIMING_LEVEL_1,TIMING_LEVEL_2,TIMING_LEVEL_3};
 const _sLUMIN_REF luminDefaultRef={DEFAULT_LUMIN_DARK,DEFAULT_LUMIN_LIGHT};
+const _sFILTERLIVE filterRef={DEFAULT_RESET_HOUR,DEFAULT_MAX_USE_HOUR};
 
 const uint8_t version[2]={0x01,0x05};
 
@@ -78,6 +85,7 @@ void MainTask(void* arg)
   uint16_t upCnt;
   uint16_t dataTemp;
   MainVariablesInit();
+  ReadGlobalParameter();
   for(;;)
 	{
 	if(xQueueReceive(inputMsgQueue,mInputMsg,10) == pdTRUE)// input task messages
@@ -265,6 +273,12 @@ void MainTask(void* arg)
 	
 					break;
 					case WIFI_DUST_SEN:
+						dataPointer = (uint8_t*)mWifiRecMsg->wifiMsgParam;
+						dataTemp = *dataPointer++;
+						dataTemp <<= 8;
+						dataTemp |=*dataPointer;
+						globalParameter.dustSen = dataTemp;
+						SaveGlobalParameter();
 	
 					break;
 					case WIFI_TVOC_REF:
@@ -272,6 +286,9 @@ void MainTask(void* arg)
 					break;			 
 				 case WIFI_MSG_NET:
 				  runningValue.netStatus = *((uint8_t*)mWifiRecMsg->wifiMsgParam);
+				 break;
+				 case WIFI_MSG_UPDATE:
+				 
 				 break;
 		default:
 				
@@ -282,10 +299,10 @@ void MainTask(void* arg)
 /********* to do gas and dust level parse**
 *********  filter live count  timing count 
 *********  and fan fault detection       ***/
-	    
-	 SecondLoopProcess();
-   FaultDetection();
-	 FilterLiveCount();
+
+SecondLoopProcess();
+FaultDetection();
+FilterLiveCount();
 	
  if(runningValue.netStatus >= 1)
  {
@@ -317,18 +334,17 @@ void MainVariablesInit(void)
    mOutputMsg = pvPortMalloc(sizeof(_sOUTPUT_MSG));
    mWifiRecMsg = pvPortMalloc(sizeof(_sWIFI_REC_MSG));
    mWifiSndMsg = pvPortMalloc(sizeof(_sWIFI_SND_MSG));
-	 secondLoop = pvPortMalloc(sizeof(_sLOOPTIMER));
-	 mFilterCnt = pvPortMalloc(sizeof(_sLOOPTIMER));
+   secondLoop = pvPortMalloc(sizeof(_sLOOPTIMER));
+   mFilterCnt = pvPortMalloc(sizeof(_sLOOPTIMER));
    semWifiVariable = xSemaphoreCreateBinary();
-	
-	 LoopTimerInit(secondLoop,1000);//
-	 LoopTimerInit(mFilterCnt,60000);// one minute per loop 
+   LoopTimerInit(secondLoop,1000);//
+   LoopTimerInit(mFilterCnt,60000);// one minute per loop 
    memcpy((char*)&runningValue,(const char*)&runningValueDefault,sizeof(runningValueDefault));
-   memcpy((char*)&spdRef,(const char*)&spdRefDefault,sizeof(spdRefDefault));
-   memcpy((char*)&dustRef,(const char*)&dustRefDefault,sizeof(dustRefDefault));
-   memcpy((char*)&gasRef,(const char*)&gasRefDefault,sizeof(gasRefDefault));
-   memcpy((char*)&luminRef,(const char*)&luminDefaultRef,sizeof(luminDefaultRef));
-   memcpy((char*)&autoSpdRef,(const char*)&autoSpdRefDefault,sizeof(autoSpdRefDefault));
+   memcpy((char*)&globalParameter.speedRef,(const char*)&spdRefDefault,sizeof(spdRefDefault));
+   memcpy((char*)&globalParameter.dustRef,(const char*)&dustRefDefault,sizeof(dustRefDefault));
+   memcpy((char*)&globalParameter.gasRef,(const char*)&gasRefDefault,sizeof(gasRefDefault));
+   memcpy((char*)&globalParameter.lumiRef,(const char*)&luminDefaultRef,sizeof(luminDefaultRef));
+   memcpy((char*)&globalParameter.atuoSpdRef,(const char*)&autoSpdRefDefault,sizeof(autoSpdRefDefault));
 }
 
 /****************
@@ -381,22 +397,22 @@ static void MainSetSpeed(uint8_t mode)
 	switch(mode)
 	{
 		case MODE_STANDBY:
-			runningValue.speed.targetSpd = spdRef.standbySpdRef;
+			runningValue.speed.targetSpd = globalParameter.speedRef.standbySpdRef;
 			break;
 		case MODE_JET:
-			runningValue.speed.targetSpd = spdRef.jetSpdRef;
+			runningValue.speed.targetSpd = globalParameter.speedRef.jetSpdRef;
 			break;
 		case MODE_LOW:
-			runningValue.speed.targetSpd = spdRef.lowSpdRef;
+			runningValue.speed.targetSpd = globalParameter.speedRef.lowSpdRef;
 			break;
 		case MODE_AUTO:
-			runningValue.speed.targetSpd = autoSpdRef.autoLowSpdRef;
+			runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoLowSpdRef;
 			break;
 		case MODE_MEDIUM:
-			runningValue.speed.targetSpd = spdRef.mediumSpdRef;
+			runningValue.speed.targetSpd = globalParameter.speedRef.mediumSpdRef;
 			break;
 		case MODE_HIGH:
-			runningValue.speed.targetSpd = spdRef.highSpdRef;
+			runningValue.speed.targetSpd = globalParameter.speedRef.highSpdRef;
 			break;
 		default:
 		break;
@@ -427,8 +443,8 @@ static void FilterLiveCount(void)
 			filterCnt.hour++;
 			if(runningValue.mode != MODE_STANDBY)
 			{
-				filterLive.filterHoursCnt++;
-				if(filterLive.filterHoursCnt >= filterLive.maxFilterHours)
+				globalParameter.filterVar.filterHoursCnt++;
+				if(globalParameter.filterVar.filterHoursCnt>= globalParameter.filterVar.maxFilterHours)
 				{
 				  runningValue.filterState = FILTER_STATE_CHANGED;
 				}
@@ -459,18 +475,18 @@ void AqiCaculation(void)
 {
 	uint16_t* p_data; 
 	uint8_t aqi_tmp;
-	if((runningValue.dustDensity <=dustRef.dustGoodRef)&&(runningValue.gasValue <= gasRef.gasGoodRef))
+	if((runningValue.dustDensity <=globalParameter.dustRef.dustGoodRef)&&(runningValue.gasValue <= globalParameter.gasRef.gasGoodRef))
 		aqi_tmp= AQI_LEVEL_GOOD;
-	if(((runningValue.dustDensity>dustRef.dustGoodRef)&&(runningValue.dustDensity<=dustRef.dustFineRef))||
-		((runningValue.gasValue >gasRef.gasGoodRef)&&(runningValue.gasValue<=gasRef.gasFineRef)))
+	if(((runningValue.dustDensity>globalParameter.dustRef.dustGoodRef)&&(runningValue.dustDensity<=globalParameter.dustRef.dustFineRef))||
+		((runningValue.gasValue >globalParameter.gasRef.gasGoodRef)&&(runningValue.gasValue<=globalParameter.gasRef.gasFineRef)))
 		aqi_tmp = AQI_LEVEL_FINE;
-	if(((runningValue.dustDensity>dustRef.dustFineRef))||((runningValue.gasValue >gasRef.gasFineRef)))
+	if(((runningValue.dustDensity>globalParameter.dustRef.dustFineRef))||((runningValue.gasValue >globalParameter.gasRef.gasFineRef)))
 		aqi_tmp = AQI_LEVEL_BAD;
 	if(runningValue.mode == MODE_AUTO)
 	{
 	if(runningValue.aqiLevel != aqi_tmp)
 	  {
-	p_data = (uint16_t*)&autoSpdRef;
+	p_data = (uint16_t*)&globalParameter.atuoSpdRef;
 	runningValue.aqiLevel = (_eAQI_LEVEL)aqi_tmp;
 	runningValue.speed.targetSpd =*(p_data+aqi_tmp);
 	mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
@@ -513,6 +529,153 @@ static void TimingCount(void)
 	 }
   }
 	}
+}
+
+
+
+void SaveGlobalParameter(void)
+{
+  uint16_t* dataPointer;
+  uint32_t adddress;
+  uint8_t ret;
+  uint8_t i;
+  uint8_t length;
+  FLASH_Unlock();
+  dataPointer = (uint16_t*)&globalParameter;
+  portENTER_CRITICAL();
+  ret = FLASH_ErasePage(DATA_START_ADDR);
+  length = sizeof(_sREFERENCE_VALUE);
+  adddress = DATA_START_ADDR;
+  if(ret == FLASH_COMPLETE)
+  {
+  	for(i=0;i<length;i=i+2)
+  	{
+  	ret = FLASH_ProgramHalfWord(adddress,*dataPointer);
+	if(ret == FLASH_COMPLETE)
+	{
+	dataPointer++;
+	adddress+=2;
+	}else
+	break;
+  	}
+  }
+  FLASH_Lock();
+  portEXIT_CRITICAL();
+}
+
+
+void GetFlashSpdRef(uint32_t addr)
+{
+	uint8_t length;
+	//uint16_t buffer[10];
+	uint32_t address;
+	address = addr;
+	length = sizeof(_sSPEED_REFERENCE);
+    memcpy(&globalParameter.speedRef,(uint32_t*)address,length);
+	if(globalParameter.speedRef.highSpdRef== 0xffff)
+		globalParameter.speedRef.highSpdRef = spdRefDefault.highSpdRef;
+	if(globalParameter.speedRef.jetSpdRef == 0xffff)
+		globalParameter.speedRef.jetSpdRef= spdRefDefault.jetSpdRef;
+	if(globalParameter.speedRef.lowSpdRef== 0xffff)
+		globalParameter.speedRef.lowSpdRef= spdRefDefault.lowSpdRef;
+	if(globalParameter.speedRef.mediumSpdRef== 0xffff)
+		globalParameter.speedRef.mediumSpdRef= spdRefDefault.mediumSpdRef;
+	if(globalParameter.speedRef.standbySpdRef== 0xffff)
+		globalParameter.speedRef.standbySpdRef= spdRefDefault.standbySpdRef;
+}
+
+void GetFlashAutoSpdRef(uint32_t addr)
+{
+	uint8_t length;
+	uint32_t address;
+	address = addr;
+	length = sizeof(_sAUTOSPD_REF);
+    memcpy(&globalParameter.atuoSpdRef,(uint32_t*)address,length);
+	if(globalParameter.atuoSpdRef.autoHighSpdRef== 0xffff)
+		globalParameter.atuoSpdRef.autoHighSpdRef= autoSpdRefDefault.autoHighSpdRef;
+	if(globalParameter.atuoSpdRef.autoLowSpdRef== 0xffff)
+		globalParameter.atuoSpdRef.autoLowSpdRef= autoSpdRefDefault.autoLowSpdRef;
+	if(globalParameter.atuoSpdRef.autoMedSpdRef== 0xffff)
+		globalParameter.atuoSpdRef.autoMedSpdRef= autoSpdRefDefault.autoMedSpdRef;
+}
+
+
+void GetFlashDustRef(uint32_t addr)
+{
+	uint8_t length;
+	uint32_t address;
+	address = addr;
+	length = sizeof(_sDUST_REFERENCE);
+    memcpy(&globalParameter.dustRef,(uint32_t*)address,length);
+	if(globalParameter.dustRef.dustBadRef== 0xffff)
+		globalParameter.dustRef.dustBadRef= dustRefDefault.dustBadRef;
+	if(globalParameter.dustRef.dustFineRef== 0xffff)
+		globalParameter.dustRef.dustFineRef= dustRefDefault.dustFineRef;
+	if(globalParameter.dustRef.dustGoodRef== 0xffff)
+		globalParameter.dustRef.dustGoodRef= dustRefDefault.dustGoodRef;
+}
+
+void GetFlashLumiRef(uint32_t addr)
+{
+	uint8_t length;
+	uint32_t address;
+	address = addr;
+	length = sizeof(_sLUMIN_REF);
+    memcpy(&globalParameter.lumiRef,(uint32_t*)address,length);
+	if(globalParameter.lumiRef.luminDark== 0xffff)
+		globalParameter.lumiRef.luminDark = luminDefaultRef.luminDark;
+	if(globalParameter.lumiRef.luminLight== 0xffff)
+		globalParameter.lumiRef.luminLight= luminDefaultRef.luminLight;
+}
+
+
+void GetFlashFilterVar(uint32_t addr)
+{
+	uint8_t length;
+	uint32_t address;
+	address = addr;
+	length = sizeof(_sFILTERLIVE);
+    memcpy(&globalParameter.filterVar,(uint32_t*)address,length);
+	if(globalParameter.filterVar.filterHoursCnt== 0xffff)
+		globalParameter.filterVar.filterHoursCnt= filterRef.filterHoursCnt;
+	if(globalParameter.filterVar.maxFilterHours== 0xffff)
+		globalParameter.filterVar.maxFilterHours= filterRef.maxFilterHours;	
+}
+
+void GetFlashSen(uint32_t addr)
+{
+	uint8_t length;
+	uint32_t address;
+	address = addr;
+	length = sizeof(uint16_t);
+    memcpy(&globalParameter.dustSen,(uint32_t*)address,length);
+	if(globalParameter.dustSen== 0xffff)
+		globalParameter.dustSen = DEFAULT_DUST_SENS;
+}
+
+void GetFlashGasBase(uint32_t addr)
+{
+	uint8_t length;
+	//uint16_t buffer[10];
+	uint32_t address;
+	address = addr;
+	length = sizeof(uint16_t);
+    memcpy(&globalParameter.gasBase,(uint32_t*)(address),length);
+	if(globalParameter.gasBase== 0xffff)
+		globalParameter.gasBase = DEFAULT_GAS_BASE;
+}
+
+
+void ReadGlobalParameter(void)
+{
+	GetFlashSpdRef(SPDREF_ADDR);
+	GetFlashAutoSpdRef(AUTOSPDREF_ADDR);
+	GetFlashDustRef(DUSTREF_ADDR);
+	GetFlashLumiRef(LUMIREF_ADDR);
+	GetFlashFilterVar(FILTER_ADDR);
+	GetFlashSen(DUSTSEN_ADDR);
+	GetFlashGasBase(GASBASE_ADDR);
+
 }
 
 uint8_t* GetModeState(void)
@@ -582,12 +745,12 @@ uint8_t* GetFanSpeed(void)
 
 uint8_t* GetFanSpdRef(void)
 {
- return (uint8_t*)(&spdRef);
+ return (uint8_t*)(&globalParameter.speedRef);
 }
 
 uint8_t* GetDustRef(void)
 {
- return (uint8_t*)(&dustRef);
+ return (uint8_t*)(&globalParameter.dustRef);
 }
 
 uint8_t* GetAutoSpdRef(void)
@@ -596,7 +759,7 @@ uint8_t* GetAutoSpdRef(void)
 }
 uint8_t* GetLuminRef(void)
 {
-  return (uint8_t*)(&luminRef);
+  return (uint8_t*)(&globalParameter.lumiRef);
 }
 uint8_t* GetDustSen(void)
 {
@@ -604,7 +767,7 @@ uint8_t* GetDustSen(void)
 }
 uint8_t* GetTVOCRef(void)
 {
- return (uint8_t*)(&gasRef);
+ return (uint8_t*)(&globalParameter.gasRef);
 }
 
 

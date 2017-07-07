@@ -185,7 +185,7 @@ void FanTimerInit(void)
 	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCPolarity_High;
 	TIM_OC1Init(TIM1, &TIM_OCInitstructure);
 	TIM_OC1PreloadConfig(TIM1,TIM_OCPreload_Disable);
-    TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
+	TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
 	/*
 	input capture 
 	*/
@@ -354,15 +354,16 @@ if(TIM_GetITStatus(TIM15,TIM_IT_CC1) == SET)
 void ChangeFanPeriod(uint16_t freq)
 {
 	fanPeriod = freq;
-	if((TIM1->CCER&0x0001) == 0)// the 12th bit is channel 4 output enable control bit 
-	{
-		FanTimerStart();
-		TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
-	}
-	else if(freq == FAN_PERIOD_MAXCOUNT)
+
+	if(freq == FAN_PERIOD_MAXCOUNT)
 	{
 		FanTimerCounterStop();
-		TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
+		//TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
+	}
+	else if((TIM1->CCER&0x0001) == 0)// the 12th bit is channel 4 output enable control bit 
+	{
+		FanTimerStart();
+		//TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
 	}
 }
 
@@ -370,6 +371,7 @@ void FanTimerCounterStop(void)
 {
 	TIM_SetCompare1(TIM1,fanPeriod);
 	TIM_SetCounter(TIM1,0x0000);
+	TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
 	TIM_Cmd(TIM1,DISABLE);
 }
 
@@ -377,6 +379,7 @@ void FanTimerStart(void)
 {
   TIM_SetCompare1(TIM1,fanPeriod);
 	TIM_SetCounter(TIM1,0x0000);
+	TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
 	TIM_Cmd(TIM1,ENABLE);
 }
 

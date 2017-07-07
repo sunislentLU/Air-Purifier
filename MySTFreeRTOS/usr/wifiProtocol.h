@@ -23,6 +23,12 @@ typedef enum
  CMD_GET_TIME,
  CMD_SET_VISIBLE,
 
+ CMD_ASK_UPDATE = 0x30,// mcu  inquiry  update infomation via wifi module
+ CMD_REQ_UPDATE,       //MCU requird wifi update mcu
+ CMD_UPDATE_DATA,     //wifi transmit firmware data to mcu
+ CMD_UPDATE_FINISH,
+
+ 
  CMD_REC_DATA = 0x80,
  CMD_SND_DATA,
  CMD_REC_TERM_DATA,
