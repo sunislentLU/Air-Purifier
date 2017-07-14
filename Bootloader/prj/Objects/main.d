@@ -24,3 +24,6 @@
 .\objects\main.o: ..\STM32F0xx_StdPeriph_Driver\inc\stm32f0xx_usart.h
 .\objects\main.o: ..\STM32F0xx_StdPeriph_Driver\inc\stm32f0xx_wwdg.h
 .\objects\main.o: ..\STM32F0xx_StdPeriph_Driver\inc\stm32f0xx_misc.h
+.\objects\main.o: ..\src\hardware.h
+.\objects\main.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\main.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h

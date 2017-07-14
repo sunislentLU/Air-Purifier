@@ -88,11 +88,10 @@ void PendSV_Handler(void)
 {
 }
 
-
+extern unsigned char  is_msExpired;
 void SysTick_Handler(void)
 {
-
-
+	is_msExpired = 1;
 }
 
 /**

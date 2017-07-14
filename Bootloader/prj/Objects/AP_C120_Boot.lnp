@@ -9,8 +9,11 @@
 ".\objects\stm32f0xx_tim.o"
 ".\objects\stm32f0xx_usart.o"
 ".\objects\stm32f0xx_iwdg.o"
+".\objects\stm32f0xx_i2c.o"
 ".\objects\main.o"
 ".\objects\stm32f0xx_it.o"
+".\objects\hardware.o"
+".\objects\md5.o"
 --strict --scatter ".\Objects\AP_C120_Boot.sct"
 --summary_stderr --info summarysizes --map --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers
