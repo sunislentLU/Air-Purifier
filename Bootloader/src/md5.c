@@ -1,25 +1,11 @@
 #include <stdio.h> 
 #include <stdlib.h> 
-#include <time.h> 
+//#include <time.h> 
 #include <string.h> 
 
 typedef unsigned char *POINTER; 
-typedef unsigned short int UINT2; 
-typedef unsigned long int UINT4; 
-
-typedef struct 
-{ 
- UINT4 state[4]; 
- UINT4 count[2]; 
- unsigned char buffer[64]; 
-} MD5_CTX; 
-
-void MD5Init(MD5_CTX *); 
-void MD5Update(MD5_CTX *, unsigned char *, unsigned int); 
-void MD5Final(unsigned char [16], MD5_CTX *); 
-
-/*ConstantsforMD5Transformroutine.*/
-/*md5转换用到的常量，算法本身规定的*/
+typedef unsigned short int uint16_t; 
+typedef unsigned  int uint32_t; 
 
 #define S11 7 
 #define S12 12 
@@ -41,11 +27,11 @@ void MD5Final(unsigned char [16], MD5_CTX *);
 用于bits填充的缓冲区，为什么要64个字节呢？因为当欲加密的信息的bits数被512除其余数为448时，
 需要填充的bits的最大值为512=64*8。
 */
-static unsigned char PADDING[64] = { 
- 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
- 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
- 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
-}; 
+//static unsigned char PADDING[64] = { 
+// 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+// 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
+//}; 
 /*
 接下来的这几个宏定义是md5算法规定的，就是对信息进行md5加密都要做的运算。
 据说有经验的高手跟踪程序时根据这几个特殊的操作就可以断定是不是用的md5
@@ -62,16 +48,12 @@ static unsigned char PADDING[64] = {
 /*FF,GG,HH,andIItransformationsforrounds1,2,3,and4.
 Rotationisseparatefromadditiontopreventrecomputation.
 */
-#define FF(a,b,c,d,x,s,ac) {(a)+=F((b),(c),(d))+(x)+(UINT4)(ac); (a)=ROTATE_LEFT((a),(s)); (a) += (b);} 
-#define GG(a, b, c, d, x, s, ac) { (a) += G ((b), (c), (d)) + (x) + (UINT4)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
-#define HH(a, b, c, d, x, s, ac) { (a) += H ((b), (c), (d)) + (x) + (UINT4)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
-#define II(a, b, c, d, x, s, ac) { (a) += I ((b), (c), (d)) + (x) + (UINT4)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
+#define FF(a,b,c,d,x,s,ac) {(a)+=F((b),(c),(d))+(x)+(uint32_t)(ac); (a)=ROTATE_LEFT((a),(s)); (a) += (b);} 
+#define GG(a, b, c, d, x, s, ac) { (a) += G ((b), (c), (d)) + (x) + (uint32_t)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
+#define HH(a, b, c, d, x, s, ac) { (a) += H ((b), (c), (d)) + (x) + (uint32_t)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
+#define II(a, b, c, d, x, s, ac) { (a) += I ((b), (c), (d)) + (x) + (uint32_t)(ac); (a) = ROTATE_LEFT ((a), (s)); (a) += (b); } 
 
-
-
-
-
-inline void Encode(unsigned char *output, UINT4 *input, unsigned int len) 
+void Encode(unsigned char *output, uint32_t *input, unsigned int len) 
 { 
  unsigned int i, j; 
  
@@ -83,28 +65,10 @@ inline void Encode(unsigned char *output, UINT4 *input, unsigned int len)
  } 
 } 
 
-/*Decodesinput(unsignedchar)int output(UINT4).Assumeslenis
-amultipleof4.*/
-/*与上面的函数正好相反，这一个把字符形式的缓冲区中的数据copy到4字节的整数中（即以整数形式保存）
-output：保存转换出的整数
-input：欲转换的字符缓冲区
-len：输入的字符缓冲区的长度，要求是4的整数倍
-*/
 
-inline void Decode(UINT4 *output, unsigned char *input, unsigned int len) 
-{ 
- unsigned int i, j; 
- 
- for (i = 0, j = 0; j < len; i++, j += 4) 
- output[i] = ((UINT4)input[j]) | (((UINT4)input[j+1]) << 8) | 
- (((UINT4)input[j+2]) << 16) | (((UINT4)input[j+3]) << 24); 
-} 
-
-static void MD5Transform (UINT4 state[4], unsigned char block[64])
+static void MD5Transform (uint32_t state[4], unsigned int x[16])
 {
-	UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
-	Decode(x, block, 64);
-	/* Round 1 */
+	uint32_t a = state[0], b = state[1], c = state[2], d = state[3];
 	FF(a, b, c, d, x[ 0], S11, 0xd76aa478); /* 1 */
 	FF(d, a, b, c, x[ 1], S12, 0xe8c7b756); /* 2 */
 	FF(c, d, a, b, x[ 2], S13, 0x242070db); /* 3 */
@@ -127,7 +91,7 @@ static void MD5Transform (UINT4 state[4], unsigned char block[64])
 	GG(c, d, a, b, x[11], S23, 0x265e5a51); /* 19 */
 	GG(b, c, d, a, x[ 0], S24, 0xe9b6c7aa); /* 20 */
 	GG(a, b, c, d, x[ 5], S21, 0xd62f105d); /* 21 */
-	GG(d, a, b, c, x[10], S22,   0x2441453); /* 22 */
+	GG(d, a, b, c, x[10], S22, 0x2441453); /* 22 */
 	GG(c, d, a, b, x[15], S23, 0xd8a1e681); /* 23 */
 	GG(b, c, d, a, x[ 4], S24, 0xe7d3fbc8); /* 24 */
 	GG(a, b, c, d, x[ 9], S21, 0x21e1cde6); /* 25 */
@@ -177,114 +141,51 @@ static void MD5Transform (UINT4 state[4], unsigned char block[64])
 	state[2] += c;
 	state[3] += d;
 	/* Zeroize sensitive information. */
-	memset((POINTER)x, 0, sizeof(x));
 }
 
-/*Encodesinput(UINT4)intooutput(unsignedchar).Assumeslenis
-amultipleof4.*/
-/*将4字节的整数copy到字符形式的缓冲区中
-output：用于输出的字符缓冲区
-input：欲转换的四字节的整数形式的数组
-len：output缓冲区的长度，要求是4的整数倍
-*/
 
-void MD5Update(MD5_CTX *context,unsigned char * input,unsigned int   inputLen)
+	uint32_t dataBuff[16];
+	uint32_t stateTemp[4];
+	uint32_t addr;
+	uint16_t i;
+	uint16_t length;
+	uint16_t lengthMod;
+void CheckCodeMd5Result(unsigned char* resultBuff,uint16_t dataLen,uint32_t startAddr)
 {
-unsigned int i, index, partLen;
-/* Compute number of bytes mod 64 */
-/*计算已有信息的bits长度的字节数的模64, 64bytes=512bits。
-用于判断已有信息加上当前传过来的信息的总长度能不能达到512bits，
-如果能够达到则对凑够的512bits进行一次处理*/
-index = (unsigned int)((context->count[0] >> 3) & 0x3F);
-/* Update number of bits *//*更新已有信息的bits长度*/
-if((context->count[0] += ((UINT4)inputLen << 3)) < ((UINT4)inputLen << 3))
-   context->count[1]++;
-context->count[1] += ((UINT4)inputLen >> 29);
-/*计算已有的字节数长度还差多少字节可以 凑成64的整倍数*/
-partLen = 64 - index;
-/* Transform as many times as possible.
-   */
-/*如果当前输入的字节数 大于 已有字节数长度补足64字节整倍数所差的字节数*/
-if(inputLen >= partLen)
-     {
-   /*用当前输入的内容把context->buffer的内容补足512bits*/
-   memcpy((POINTER)&context->buffer[index], (POINTER)input, partLen);
-   /*用基本函数对填充满的512bits（已经保存到context->buffer中） 做一次转换，转换结果保存到context->state中*/
-   MD5Transform(context->state, context->buffer);
-/*
-对当前输入的剩余字节做转换（如果剩余的字节<在输入的input缓冲区中>大于512bits的话 ），
-转换结果保存到context->state中
-*/
-   for(i = partLen; i + 63 < inputLen; i += 64)/*把i+63<inputlen改为i+64<=inputlen更容易理解*/
-    MD5Transform(context->state, &input[i]);
-         index = 0;
-     }
-     else
-   i = 0;
-/* Buffer remaining input */
-/*将输入缓冲区中的不足填充满512bits的剩余内容填充到context->buffer中，留待以后再作处理*/
-memcpy((POINTER)&context->buffer[index], (POINTER)&input[i], inputLen-i);
+
+	unsigned char* u8Pointer;
+	uint32_t bitNum;
+	addr = startAddr;
+	stateTemp[0] = 0x67452301;   
+	stateTemp[1] = 0xefcdab89;   
+	stateTemp[2] = 0x98badcfe;   
+	stateTemp[3] = 0x10325476;
+	length = dataLen/64;//512bit *dataLen 
+	lengthMod = dataLen%64;
+	bitNum = dataLen*8;
+	for(i=0;i<length;i++)
+	{	
+		memcpy(dataBuff,(uint32_t*)addr,64);
+		MD5Transform(stateTemp,dataBuff);
+		addr+=64;
+		memset(dataBuff,0,64);
+	}
+	memcpy(dataBuff,(uint32_t*)addr,lengthMod);
+	if(lengthMod != 56)
+	{
+		u8Pointer = (unsigned char*)dataBuff;
+		u8Pointer+=lengthMod;
+		*u8Pointer++=0x80;
+		if(lengthMod >55)
+		{
+			MD5Transform(stateTemp,dataBuff);
+		memset(dataBuff,0,64);
+	  }
+		u8Pointer = (unsigned char*)dataBuff;
+		u8Pointer +=56;
+		memcpy(u8Pointer,&bitNum,4);
+		MD5Transform(stateTemp,dataBuff);
+	}
+	Encode(resultBuff,stateTemp,16);
 }
 
-/* MD5 initialization. Begins an MD5 operation, writing a new context. */
-/*初始化md5的结构*/
-void MD5Init (MD5_CTX *context)
-{
-   /*将当前的有效信息的长度设成0,这个很简单,还没有有效信息,长度当然是0了*/
-   context->count[0] = context->count[1] = 0;
-   /* Load magic initialization constants.*/
-   /*初始化链接变量，算法要求这样，这个没法解释了*/
-   context->state[0] = 0x67452301;
-   context->state[1] = 0xefcdab89;
-   context->state[2] = 0x98badcfe;
-   context->state[3] = 0x10325476;
-}
-
-/* MD5 finalization. Ends an MD5 message-digest operation, writing the
-   the message digest and zeroizing the context. */
-/*获取加密 的最终结果
-digest：保存最终的加密串
-context：你前面初始化并填入了信息的md5结构
-*/
-void MD5Final (unsigned char digest[16],MD5_CTX *context)
-{
-unsigned char bits[8];
-unsigned int index, padLen;
-/* Save number of bits */
-/*将要被转换的信息(所有的)的bits长度拷贝到bits中*/
-Encode(bits, context->count, 8);
-/* Pad out to 56 mod 64. */
-/* 计算所有的bits长度的字节数的模64, 64bytes=512bits*/
-index = (unsigned int)((context->count[0] >> 3) & 0x3f);
-/*计算需要填充的字节数，padLen的取值范围在1-64之间*/
-padLen = (index < 56) ? (56 - index) : (120 - index);
-/*这一次函数调用绝对不会再导致MD5Transform的被调用，因为这一次不会填满512bits*/
-MD5Update(context, PADDING, padLen);
-/* Append length (before padding) */
-/*补上原始信息的bits长度（bits长度固定的用64bits表示），这一次能够恰巧凑够512bits，不会多也不会少*/
-MD5Update(context, bits, 8);
-/* Store state in digest */
-/*将最终的结果保存到digest中。ok，终于大功告成了*/
-Encode(digest, context->state, 16);
-/* Zeroize sensitive information. */
-memset((POINTER)context, 0, sizeof(*context));
-}
-
-int main(int argc, char* argv[])
-{
-	MD5_CTX md5;
-	MD5Init(&md5);                          //初始化用于md5加密的结构
- 
-	unsigned char encrypt[200];      //存放于加密的信息
-	unsigned char decrypt[17];        //存放加密后的结果
-//	scanf("%s",encrypt);                  //输入加密的字符
- 
-	MD5Update(&md5,encrypt,strlen((char *)encrypt));    //对欲加密的字符进行加密
-	MD5Final(decrypt,&md5);                                             //获得最终结果
- 
-	//printf("加密前:%s\n加密后:",encrypt);
-//	for(int i=0;i<16;i++)
-	//printf("%2x ",decrypt[i]);
-	//printf("\n\n\n加密结束!\n");
-return 0;
-}

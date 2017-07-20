@@ -13,12 +13,12 @@
 ***********************************/
 
 #define BOOT_START_ADDR  0x08000000
-#define BOOT_END_ADDR    0x08001FFF
-#define BOOT_AREA_SIZE   0x2000
+#define BOOT_END_ADDR    0x080027FF
+#define BOOT_AREA_SIZE   0x2800
 
-#define APP_START_ADDR   0x08002000
+#define APP_START_ADDR   0x08002800
 #define APP_END_ADDR     0x0800F7FF
-#define APP_AREA_SIZE    0xD800
+#define APP_AREA_SIZE    0xD000
 
 
 #define DATA_START_ADDR   0x0800F800
@@ -37,9 +37,13 @@
 
 
 #define BOOT_OPTION_ADDR BOOT_DATA_ADDR
-#define VERSION_ADDR     BOOT_OPTION_ADDR+2
-#define CHECK_RESULT     VERSION_ADDR+2
+#define VERSION_ADDR     BOOT_OPTION_ADDR+4
+#define CHECK_RESULT     VERSION_ADDR+4
+#define FIRMLEN_ADDR     CHECK_RESULT+16
 
+
+#define PAGE_SIZE  1024
+#define APP_PAGE_NUM   52
 
 typedef enum
 {
@@ -50,17 +54,28 @@ typedef enum
   BOOT_END
 }_eBOOT_PRC;
 
+//typedef unsigned char *POINTER; 
+//typedef unsigned short int UINT2; 
+//typedef unsigned long int UINT4; 
+
+//typedef struct 
+//{ 
+// UINT4 state[4]; 
+// UINT4 count[2]; 
+// unsigned char buffer[64]; 
+//} MD5_CTX; 
 
 
-typedef struct
-{
-unsigned char  head;
-unsigned short length;
-unsigned char cmd;
-unsigned char data[262];
-unsigned char checksum;//cmd + length + sn +ip +data
-unsigned char end;
-}_sWIFI_FORMAT;
+
+//typedef struct
+//{
+//unsigned char  head;
+//unsigned short length;
+//unsigned char cmd;
+//unsigned char data[262];
+//unsigned char checksum;//cmd + length + sn +ip +data
+//unsigned char end;
+//}_sWIFI_FORMAT;
 
 typedef  void (*pFunction)(void);
 /* Exported constants --------------------------------------------------------*/

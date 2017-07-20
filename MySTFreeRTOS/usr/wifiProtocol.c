@@ -84,27 +84,27 @@ unsigned char CheckTableLenght(unsigned char* table)
 ***************/
 unsigned char  ParseWifiDatas(_sWIFI_FORMAT* wifiData)
 {
- unsigned char* data_tmp;
+// unsigned char* data_tmp;
  unsigned char checksum = 0;
- unsigned char i= 0,j = 0,lenght = 0,length1=0;;
- data_tmp = wifiData->data;
- lenght = CheckTableLenght(data_tmp);
- for(i=0;i<lenght;i++)
- {
-    if((*data_tmp >= 0x7d)&&(*(data_tmp+1) == 0xfd))
-    {
-		*data_tmp +=0x80;
-		data_tmp++;
-		length1 = lenght-j+1;
-		for(j=i;j<length1;j++)
-		{
-          *data_tmp = *(data_tmp+1);
-			    data_tmp++;
-		}
-		data_tmp = data_tmp - lenght-j-1;
-	}	else
-		data_tmp++;
- }
+ unsigned char i= 0;//,j = 0,lenght = 0,length1=0;;
+// data_tmp = wifiData->data;
+// lenght = wifiData->length - 1;//CheckTableLenght(data_tmp);
+// for(i=0;i<lenght;i++)
+// {
+//    if((*data_tmp >= 0x7d)&&(*(data_tmp+1) == 0xfd))
+//    {
+//		*data_tmp +=0x80;
+//		data_tmp++;
+//		length1 = lenght-j+1;
+//		for(j=i;j<length1;j++)
+//		{
+//			*data_tmp = *(data_tmp+1);
+//			 data_tmp++;
+//		}
+//		data_tmp = data_tmp - lenght-j-1;
+//	}	else
+//		data_tmp++;
+// }
 
  for(i = 0;i<wifiData->length;i++)
  {
@@ -180,29 +180,6 @@ void SendCmd2WifiModule(unsigned char cmd,const _sWIFI_CMD_PROC cmdarray[],unsig
 
 
 
-
-//void GetNetStatus(void)
-//{
-//   unsigned char* buffer;
-//   unsigned char chksum = 0;
-//   unsigned char i = 0;
-//   buffer = pvPortMalloc(6);
-//   *buffer++ = HEAD;
-//   *buffer++ = 0x00;
-//   *buffer++ = 0x06;
-//   *buffer++ = CMD_GET_NET;
-//   buffer -=2;
-//   for(i=0;i<3;i++)
-//   {
-//     chksum ^=*buffer++;
-//   }
-//   *buffer = END;
-//   for(i=0;i<6;i++)
-//   {
-//   }
-//   
-
-//}
 
 
 

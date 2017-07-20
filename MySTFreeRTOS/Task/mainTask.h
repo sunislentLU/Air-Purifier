@@ -1,6 +1,8 @@
 #ifndef _MAINTASK_H_
 #define _MAINTASK_H_
 #include "main.h"
+#define DEFALUT_SOFTVER       0x03
+
 
 #define DEFAULT_SNZ_SPD_REF    500 // default snooze mode fan speed Unit rpm
 #define DEFAULT_JET_SPD_REF    2000 
@@ -33,6 +35,11 @@
 
 
 
+
+
+
+
+
 #define DEFAULT_MODE           MODE_STANDBY// MODE_AUTO// 
 #define DEFAULT_DUSTVALUE      0
 #define DEFAULT_DUSTSUBVALUE   0
@@ -48,6 +55,8 @@
 #define DEFAULT_LUMIN         0
 #define DEFAULT_NETSTATE      NET_IDLE
 
+#define DUST_UP_THRD     20
+#define GAS_UP_THRD      200
 
 #define TIMING_LEVEL_0    0
 #define TIMING_LEVEL_1    1

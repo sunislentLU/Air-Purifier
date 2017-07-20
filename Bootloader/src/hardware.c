@@ -26,7 +26,7 @@ void WifiUartInit(void)
 {
     
 	USART_InitTypeDef USART_Initstructure;
-	NVIC_InitTypeDef  NVIC_InitStructure;
+//	NVIC_InitTypeDef  NVIC_InitStructure;
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2,ENABLE);
 	USART_DeInit(USART2);
 	USART_StructInit(&USART_Initstructure);

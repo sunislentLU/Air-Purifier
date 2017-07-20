@@ -14,7 +14,6 @@ uint8_t GetChecksum(uint8_t cmd);
 extern unsigned char  ParseWifiDatas(_sWIFI_FORMAT* wifiData);
 extern void SendCmd2WifiModule(uint8_t cmd,const _sWIFI_CMD_PROC cmdarray[],\
 	                                            unsigned char* databuff,_sFIFO* sendfifo);
-//extern void CheckFifoSendFirstData(_sFIFO* fifo);
 extern uint8_t CheckTickExpired(_sLOOPTIMER* timer);
 extern void LoopTimerInit(const _sLOOPTIMER* timer,uint16_t interval);
 void CheckFifoSendFirstData(_sFIFO* fifo);
@@ -38,6 +37,9 @@ extern uint8_t* GetAutoSpdRef(void);
 extern uint8_t* GetLuminRef(void);
 extern uint8_t* GetDustSen(void);
 extern uint8_t* GetTVOCRef(void);
+extern uint16_t GetFirmVersion(void);
+
+
 
 extern xTaskHandle wifiTask;
 
@@ -75,7 +77,7 @@ const _sTERMI_FORMAT termination_info[]={
 {0x01,MSG_PARAM_UCHAR,GetFilterRemain}, //filter remain persent
 {0x01,MSG_PARAM_UCHAR,GetLedState},     // led state
 {0x02,MSG_PARAM_USHORT,GetDevFault},    //deveice fault warning
-{0x01,MSG_PARAM_UCHAR,GetFirmwareVersion},// firmware version
+{0x02,MSG_PARAM_USHORT,GetFirmwareVersion},// firmware version
 {0x01,MSG_PARAM_UCHAR,GetCoverState},   //cover state
 {0x02,MSG_PARAM_USHORT,GetTVOCValue},    //tvoc value of resistor
 {0x02,MSG_PARAM_SHORT,GetLuminValue},   // luminace value voltage
@@ -302,7 +304,7 @@ void WIFITask(void* arg)
 				   	
 							 break;                   					 
 							 case CMD_SET_CONNECT:
-				   
+							 	
 							 break;                   					 
 							 case CMD_REBOOT_WIFI:
 				   	
@@ -339,8 +341,10 @@ void WIFITask(void* arg)
 							 break;                   					 
 							 case CMD_SND_ALL_TERM_DATA:
 							 break;                   					 
-							 case CMD_SND_SEV_TERM_DATA:			   	    				       
-							 if(xSemaphoreTake(semRecComplete, 100))
+							 case CMD_SND_SEV_TERM_DATA:
+							 if(wifiFrame->data[0] == 0x01)//only 0x01 mean just upload to router
+							 {								 
+							 if(xSemaphoreTake(semRecComplete, 1000))
 							 {
 							  if(ParseWifiDatas(wifiFrame))
 								{
@@ -350,8 +354,10 @@ void WIFITask(void* arg)
 								 }
 								}
 							 }
+						   }
 							 break;
 							 case CMD_ASK_UPDATE:// 0x30 command 
+							 dataPointer = wifiFrame->data;
 							 if(*dataPointer == 0x01)//new state
 							 {
 							 	dataPointer++;
@@ -362,21 +368,17 @@ void WIFITask(void* arg)
 							 }
 
 							 break;
-						 }
-						 							 
-					 }
-
-		
+						 }						 							 
+					 }		
 		}else
 		{
 			chkNetCnt++;
-						    
-			if(chkNetCnt == 10)			    
+			if(chkNetCnt == 50)			    
 			{					
 				if(xSemaphoreTake(semSendEnable, 2))
 						GetUpdateStatus();
 			}
-			if(chkNetCnt == 20)// two second to check net satus
+			if(chkNetCnt == 100)// two second to check net satus
 			{
 			chkNetCnt = 0;
 		   if(xSemaphoreTake(semSendEnable, 2))
@@ -403,10 +405,17 @@ void WIFITask(void* arg)
 							}
 					break;
 			  case WIFI_UP_DUST:
+			  	TransmitTermData(TERM_DUST,termination_info,uartSendBuf,uartSendFifo);
 				break;
+
+				case WIFI_UP_DUST_SUB:
+					TransmitTermData(TERM_DUST_SUB,termination_info,uartSendBuf,uartSendFifo);
+					break;
 			  case WIFI_UP_GAS:
+			  	TransmitTermData(TERM_TVOC,termination_info,uartSendBuf,uartSendFifo);
 			 	break;
 			  case WIFI_UP_LED:
+			  	TransmitTermData(TERM_LED,termination_info,uartSendBuf,uartSendFifo);
 			 	break;
 			  case WIFI_UP_LOCK:
 			 	break;
@@ -426,9 +435,19 @@ void WIFITask(void* arg)
 						}
 					}
 					break;
-				case WIFI_UP_FIRM:
-					
-					break;
+				case WIFI_SET_CONN:
+					SendCmd2WifiModule(CMD_SET_CONNECT,sendCmdArray,uartSendBuf,uartSendFifo);
+					if(xSemaphoreTake(semRecComplete, 1000))
+					{ 
+						if(ParseWifiDatas(wifiFrame))
+						{
+							if(wifiFrame->cmd == CMD_GET_PID_KEY)	// respond right												
+							{
+							}
+						}
+					}					
+				break;
+
 			  default:
 				break;
 				}
@@ -542,6 +561,11 @@ void USART2_IRQHandler(void)
 		recCnt = 0;
   	xSemaphoreGiveFromISR(semRecComplete,0);
 		uartState = WIFI_UART_HEAD;
+		break;
+	}
+	if((recData == 0xfd)&&(wifiFrame->data[recCnt - 1]>=0x7d))
+	{
+		wifiFrame->data[recCnt-1] = wifiFrame->data[recCnt-1]+0x80;
 		break;
 	}
 	 wifiFrame->data[recCnt] = recData;
@@ -894,7 +918,6 @@ void CheckFifoSendFirstData(_sFIFO* fifo)
  uint8_t sendData;
  if(fifo->count !=0)
  {
-//  if(xSemaphoreTake(semSendEnable, 2))
   while(USART_GetFlagStatus(WIFI_UART,USART_FLAG_TXE) == RESET)
   	;
   PopFromFifo(fifo,&sendData);
@@ -922,7 +945,7 @@ void GetUpdateStatus(void)
 	uint32_t description;
 	uint8_t* pointer;
 	updateType = UPDATE_TYPE_MCU;
-	upVersion = 0x01;  // get version
+	upVersion = GetFirmVersion();  // get version
 	description = DEV_DESCRIPTION;
 	checksum = 0;
 	checksum  ^=0x09;// 2byte + 7byte (type  version description)
@@ -950,4 +973,7 @@ void GetUpdateStatus(void)
 	PushInFifo(uartSendFifo,END);
 	CheckFifoSendFirstData(uartSendFifo);
 }
+
+
+
 

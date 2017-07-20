@@ -152,7 +152,6 @@ void RGBLightPwrGpio_init(void)
 
  GPIO_PinAFConfig(GPIOB,GPIO_PinSource0,GPIO_AF_1);
  GPIO_PinAFConfig(GPIOB,GPIO_PinSource1,GPIO_AF_1);
-
 }
 
 uint16_t fanPeriod = 5000;
@@ -358,12 +357,10 @@ void ChangeFanPeriod(uint16_t freq)
 	if(freq == FAN_PERIOD_MAXCOUNT)
 	{
 		FanTimerCounterStop();
-		//TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
 	}
 	else if((TIM1->CCER&0x0001) == 0)// the 12th bit is channel 4 output enable control bit 
 	{
 		FanTimerStart();
-		//TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
 	}
 }
 
