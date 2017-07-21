@@ -7,16 +7,16 @@ void WifiGPIOInit(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA,ENABLE);
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource2,GPIO_AF_1);
@@ -26,7 +26,6 @@ void WifiUartInit(void)
 {
     
 	USART_InitTypeDef USART_Initstructure;
-//	NVIC_InitTypeDef  NVIC_InitStructure;
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2,ENABLE);
 	USART_DeInit(USART2);
 	USART_StructInit(&USART_Initstructure);
@@ -36,14 +35,8 @@ void WifiUartInit(void)
 	USART_Initstructure.USART_Parity = USART_Parity_No;
 	USART_Initstructure.USART_StopBits = USART_StopBits_1;
 	USART_Init(USART2,&USART_Initstructure);
-//	USART_ITConfig(USART2,USART_IT_RXNE,ENABLE);
-	//USART_ITConfig(USART2,USART_IT_TC, ENABLE);// enable transmit complete interrupt
-	USART2->ICR = 0xffffffff;
 	USART_Cmd(USART2,ENABLE);
-//	NVIC_InitStructure.NVIC_IRQChannel = USART2_IRQn;
-	//NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-	//NVIC_InitStructure.NVIC_IRQChannelPriority = 3;
-//	NVIC_Init(&NVIC_InitStructure);
+
 }
 
 
@@ -253,4 +246,15 @@ void HardWareInit(void)
 	SysTick_Config(SystemCoreClock/1000);
 	InputHardwareInit();
   OutputHardwareGPIOInit();
+	 POWER_LED_OFF();
+ AUTO_LED_OFF();
+ FAST_LED_OFF();
+ LOW_LED_OFF();
+ MEDIUM_LED_OFF();
+ HIGH_LED_OFF();
+ TIM1_LED_OFF();
+ TIM2_LED_OFF();
+ TIM3_LED_OFF();
+ WIFI_LED_OFF();
+
 }

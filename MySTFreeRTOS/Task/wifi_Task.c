@@ -167,7 +167,7 @@ void WIFITask(void* arg)
 				netStatus_tmp = netStatus;
 				wifiRecMsg->wifiMsg = WIFI_MSG_NET;
 				wifiRecMsg->length= 1;
-				wifiRecMsg->wifiMsgParam =  &netStatus;
+				wifiRecMsg->wifiMsgParam = &netStatus;
 				xQueueSend(wifiRecQueue,wifiRecMsg,0);
 				if(netStatus == 1)
 					wifiState = WIFI_VER_PID;
@@ -181,10 +181,47 @@ void WIFITask(void* arg)
 				 
 		   }
 	    }
+			 vTaskDelay(1000);
 		}else // 1000 ms no respond 
 		{
        
 
+		}
+		if(xQueueReceive(wifiSndQueue, wifiSndMsg, 0))
+		{
+			command = wifiSndMsg->propMsg;
+			switch(command)
+			{           	
+				case WIFI_SET_CONN:
+					SendCmd2WifiModule(CMD_SET_CONNECT,sendCmdArray,uartSendBuf,uartSendFifo);
+					if(xSemaphoreTake(semRecComplete, 1000))
+					{ 
+						if(ParseWifiDatas(wifiFrame))
+						{
+							if(wifiFrame->cmd == CMD_SET_CONNECT)	// respond right												
+							{
+							}
+						}
+					}					
+				break;
+
+//				case WIFI_REBOOT:
+//					SendCmd2WifiModule(CMD_REBOOT_WIFI,sendCmdArray,uartSendBuf,uartSendFifo);
+//					if(xSemaphoreTake(semRecComplete, 1000))
+//					{ 
+//						if(ParseWifiDatas(wifiFrame))
+//						{
+//							if(wifiFrame->cmd == CMD_REBOOT_WIFI)	// respond right												
+//							{
+//							}
+//						}
+//					}					
+//				break;
+
+			  default:
+				break;
+				}
+		
 		}
 		
 	break;

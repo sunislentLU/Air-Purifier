@@ -29,7 +29,7 @@ static uint8_t  debounce_cnt=0,key_cnt =0,key_cnt2=0;
 static uint8_t key_is_down=0;
 static uint8_t key_status=KEY_STATE_IDLE;
 static uint16_t  key_temp2=0;
-static  uint8_t is_long_hold=0;
+//static  uint8_t is_long_hold=0;
 uint8_t  key_temp1=0;
 uint16_t  key_event=0;
 key_temp1 = GetIOstatus();
@@ -72,6 +72,7 @@ if(key_temp1 ==0 )
 {
 	key_is_down = KEY_TYPE_PRESS;
 	key_status = KEY_STATE_IDLE;
+	 key_cnt=0;
     break;
 }
 key_temp2 =key_temp1;
@@ -87,62 +88,66 @@ case KEY_STATE_HOLD:
   if(key_temp1 ==0 )
 //  if(key_temp1 !=key_temp2 )
 {
+	if(key_is_down == KEY_TYPE_HOLD)
+		key_is_down = 0;
+	else
 	key_is_down = KEY_TYPE_LONG_PRESS;
 	key_cnt = 0;
+	key_is_down = 0;
 	key_status = KEY_STATE_IDLE;
     break;
 }
 key_cnt++;
-if(key_cnt==100)
+if(key_cnt==200)
 {
 	key_cnt=0;
 	key_is_down = KEY_TYPE_HOLD;
 	key_event = key_is_down;
 	key_event<<=8;
 	key_event|=key_temp2;
-	key_is_down = 0;
+	//key_is_down = 0;
 	key_cnt2++;
-if(key_cnt2>=3)
-{
-   key_cnt2 = 0;
-   key_status = KEY_STATE_LONG_HOLD;  
-}
+//if(key_cnt2>=3)
+//{
+//   key_cnt2 = 0;
+//   key_status = KEY_STATE_LONG_HOLD;  
+//}
 return  key_event;
 }
 break;
 
 
-case KEY_STATE_LONG_HOLD:
-if(key_temp1 ==0 )
-// if(key_temp1 !=key_temp2 )
-{
-	key_cnt = 0;
-	key_status = KEY_STATE_IDLE;
-	if(is_long_hold)
-	{
-	key_is_down= KEY_TYPE_LONG_LONG_PRESS;
-	}
-    is_long_hold = 0;
-   break;
- }
-  key_cnt++;
- if(key_cnt==150)
- {
-   key_is_down = KEY_TYPE_LONG_HOLD;
-	 key_event = key_is_down;
-	 key_event<<=8;
-	 key_event|=key_temp2;
-	 key_is_down = 0;
-	 key_status = KEY_STATE_LONG_HOLD;
-	 return  key_event;
- }
-if(key_cnt==200)
-{
-	key_cnt=0;
-	is_long_hold = 1;
-}
-  
-  break;
+//case KEY_STATE_LONG_HOLD:
+//if(key_temp1 ==0 )
+//// if(key_temp1 !=key_temp2 )
+//{
+//	key_cnt = 0;
+//	key_status = KEY_STATE_IDLE;
+//	if(is_long_hold)
+//	{
+//	key_is_down= KEY_TYPE_LONG_LONG_PRESS;
+//	}
+//    is_long_hold = 0;
+//   break;
+// }
+//  key_cnt++;
+// if(key_cnt==150)
+// {
+//   key_is_down = KEY_TYPE_LONG_HOLD;
+//	 key_event = key_is_down;
+//	 key_event<<=8;
+//	 key_event|=key_temp2;
+//	 key_is_down = 0;
+//	 key_status = KEY_STATE_LONG_HOLD;
+//	 return  key_event;
+// }
+//if(key_cnt==200)
+//{
+//	key_cnt=0;
+//	is_long_hold = 1;
+//}
+//  
+//  break;
 default : break;
 }
 return 0;	

@@ -54,6 +54,7 @@ const uint8_t rebootStr[]={0xff,0x00,0x02,0x05,0x07,0xfe};
 uint32_t programAddr;	
 uint32_t* u32Pointer;
 uint16_t dataLength = 0;
+uint16_t wifiLedCnt = 0;
 int main(void)
 {
 	uint16_t bootArg;
@@ -82,11 +83,14 @@ int main(void)
 		oldVersion = 0x0001;
 	if((bootArg == 0xffff)||(bootArg == 0x1234))//update complete 
 	{
+		//RebootWifiModule();
+	//	WaitDelayms(1000);
 		bootState = BOOT_WAIT2APP;		
 	}else
 	{
 		if(oldVersion != bootArg)
 		{
+			WIFI_LED_ON();
 			updateVer= bootArg;
 			FLASH_Unlock();
 			programAddr = APP_START_ADDR;														
@@ -201,7 +205,7 @@ int main(void)
 				if(waitCnt >= 2000)// 1second to jump to app branch
 				{
 					waitCnt = 0;	
-					bootState = BOOT_CHK;	
+					bootState = BOOT_END;//BOOT_END;// BOOT_CHK;	
 				}			
 				if((waitCnt%500) == 0)// 100ms ask wifi module update information
 					UartAskUpdateInfo();			
@@ -277,11 +281,25 @@ int main(void)
 			 if(is_msExpired == 1)
 			{
 				is_msExpired = 0;
-				waitCnt++;								
+				waitCnt++;
+        wifiLedCnt++;				
 				if(waitCnt >= 5000)// 1second to jump to app branch
 				{
+					RebootWifiModule();			
+					WaitDelayms(100);		
+					bootState = BOOT_WAIT2APP;
 					waitCnt = 0;		
-				}			
+					break;
+				}
+				if((wifiLedCnt%200) == 0)
+				{
+					if(GPIO_ReadOutputDataBit(GPIOC,GPIO_Pin_14) == 0)
+						WIFI_LED_OFF();
+					else
+						WIFI_LED_ON();
+				
+				}
+				
 			}			 
 		 }
 			waitCnt = 0;
@@ -421,7 +439,7 @@ int main(void)
 //						if(recBuff[4] >= 0x01)//无论上报是否成功都要转到新的APP中运行
 //						{
 							waitCnt = 0;
-							RebootWifiModule();
+						//	RebootWifiModule();
 							bootState = BOOT_END; 
 							break;
 //						}
@@ -452,12 +470,16 @@ int main(void)
 	
     if (((*(__IO uint32_t*)APP_START_ADDR) & 0x2FFE0000 ) == 0x20000000)
     { 
+			RebootWifiModule();
+			WaitDelayms(100);
       JumpAddress = *(__IO uint32_t*) (APP_START_ADDR + 4);
       Jump_To_Application = (pFunction) JumpAddress;
       __set_MSP(*(__IO uint32_t*) APP_START_ADDR);  
       Jump_To_Application();
 		}else
+		{
 		  NVIC_SystemReset();
+		}
 			break;
 //	 }else
 //	{									

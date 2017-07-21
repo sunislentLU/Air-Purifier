@@ -276,6 +276,7 @@ typedef enum IRQn
   TIM1_BRK_UP_TRG_COM_IRQn    = 13,     /*!< TIM1 Break, Update, Trigger and Commutation Interrupts  */
   TIM1_CC_IRQn                = 14,     /*!< TIM1 Capture Compare Interrupt                          */
   TIM3_IRQn                   = 16,     /*!< TIM3 Interrupt                                          */
+  TIM6_IRQn                   = 17,
   TIM14_IRQn                  = 19,     /*!< TIM14 Interrupt                                         */
   TIM15_IRQn                  = 20,     /*!< TIM15 Interrupt                                         */
   TIM16_IRQn                  = 21,     /*!< TIM16 Interrupt                                         */

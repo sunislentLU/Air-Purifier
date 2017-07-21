@@ -20,8 +20,10 @@ static void SetMode(_eMODE mode);
 static void SetLightBrightness(uint16_t brightness);
 void SetBlueLed(uint8_t op);
 static void SetBuzzer(uint8_t op);
+void SetTimgLed(uint8_t timingType);
 void BuzzerLedTimer(void);
 void RgbLightFade(void);
+
 /*********Variables*****/
 extern xTaskHandle deviceOutputTask;
 xQueueHandle outputMsgQueue;
@@ -94,7 +96,15 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 				 }
 		   	break;
 		   case OUTPUT_MSG_RGB:
+				 
 		   	break;
+			 case OUTPUT_MSG_TIMING:				 
+				 SetTimgLed((*(uint8_t*)outputMsg->outputMsgParam));
+				 break;
+				 case OUTPUT_MSG_NET:
+				 //	if((*(uint8_t*)outputMsg->outputMsgParam) == 0)
+				 outputVariable.wifiLedType = (_eWIFILED)(*(uint8_t*)outputMsg->outputMsgParam);
+				 break;
 			 default:
 				break;
 	 }
@@ -121,7 +131,8 @@ void OutputVariablesInit(void)
 	outputMsgQueue = xQueueCreate(OUTPUT_QUEUE_LEN, sizeof(_sOUTPUT_MSG));
 	outputMsg = pvPortMalloc(sizeof(_sOUTPUT_MSG));
 	outputVariable.buzType = BUZ_TYPE_NONE;
-	outputVariable.wifiLedType = WIFILED_UCON;	
+	outputVariable.wifiLedType = WIFILED_UCON;
+  outputVariable.timingLedType = TIMINGLED_NONE;		
 	buzLedTimer = pvPortMalloc(sizeof(_sLOOPTIMER));
 	LoopTimerInit(buzLedTimer, 20);
 
@@ -163,33 +174,77 @@ static void SetFanSpeed(uint16_t spd)
 * Date:               20170502
 *author:              CTK  luxq
 ********************************/
+uint8_t ledStandbyFlag;
 static void SetModeLed(_eMODE mode)
 {
-  LedOffAll();
+
   switch(mode)
   {
   case MODE_STANDBY:
-  	POWER_LED_OFF();
-  	break;
+  	//POWER_LED_OFF();
+
+  break;
   case MODE_AUTO:
-  	AUTO_LED_ON();
+	LedOffAll();  	
+	AUTO_LED_ON();
 	POWER_LED_ON();
+
   	break;
   case MODE_JET:
+		 LedOffAll();
   	FAST_LED_ON();
+	  POWER_LED_ON();
+
   	break;
   case MODE_LOW:
+		LedOffAll();
   	LOW_LED_ON();
+	  POWER_LED_ON();
   	break;
   case MODE_MEDIUM:
+		LedOffAll();
   	MEDIUM_LED_ON();
+	  POWER_LED_ON();
     break;
   case MODE_HIGH:
+		LedOffAll();
   	HIGH_LED_ON();
+	  POWER_LED_ON();
   	break;
   default:
   	break;
   }
+}
+
+
+void SetTimgLed(uint8_t timingType)
+{
+	TIM1_LED_OFF();
+	TIM2_LED_OFF();
+	TIM3_LED_OFF();
+  switch(timingType)
+  {
+  case TIMINGLED_NONE:
+	TIM1_LED_OFF();
+	TIM2_LED_OFF();
+	TIM3_LED_OFF();
+  	break;
+  case TIMINGLED_TYPE_1:
+		TIM1_LED_ON();
+  	break;
+  case TIMINGLED_TYPE_2:
+		TIM2_LED_ON();
+
+  	break;
+  case TIMINGLED_TYPE_3:
+		TIM3_LED_ON();
+  	break;
+  default:
+  	break;
+  }
+
+
+
 }
 /****************
 * Function Name:      SetModeLed
@@ -200,15 +255,27 @@ static void SetModeLed(_eMODE mode)
 * Date:               20170502
 *author:              CTK  luxq
 ********************************/
+uint8_t 	ledStandbyFlag = 1;
 static void SetMode(_eMODE mode)
 {  
 	SetModeLed(mode); 
-//	SetFanSpeed(mode);
-	if(mode == MODE_STANDBY)
-		EnableRGBLEDLight(DISABLE);
-	else
-		EnableRGBLEDLight(ENABLE);
-	rgbLightValue.LuminCompare = 12000;// for test
+	if(mode!=MODE_STANDBY)
+	{
+			ledStandbyFlag = 0;
+	rgbLightValue.RGB_BCompare = 0x0fff;
+	rgbLightValue.RGB_GCompare = 0xff00;
+	rgbLightValue.RGB_RCompare = 0xff00;
+	rgbLightValue.LuminCompare = 10000;// for test
+	rgbLightValue.FilterCompare = 0x200;
+	}else
+	{	
+			ledStandbyFlag = 1;
+		rgbLightValue.RGB_BCompare = 0xffff;	
+		rgbLightValue.RGB_GCompare = 0xffff;	
+		rgbLightValue.RGB_RCompare = 0xffff;	
+		rgbLightValue.LuminCompare = 0x0000;// for test	
+		rgbLightValue.FilterCompare = 0xffff;
+	}
 	
 }
 
@@ -242,9 +309,9 @@ static void SetLightBrightness(uint16_t brightness)
 void SetBlueLed(uint8_t op)
 {
 	if(op == 1)
-  SetLed1On();
+  rgbLightValue.FilterCompare = 0x200;
 	else
-	SetLed1Off();
+	 rgbLightValue.FilterCompare = 0xffff;
 }
 
 /****************
@@ -362,8 +429,10 @@ void BuzzerLedTimer(void)
 		   	WIFI_LED_ON();
 		   if(ledCnt == 5)
 		   	WIFI_LED_OFF();
-		   if(ledCnt == 10)
+			 	 ledCnt++;
+		   if(ledCnt >= 10)
 		   	ledCnt = 0;
+		
 			break;
 		default:
 			break;
@@ -375,31 +444,56 @@ void BuzzerLedTimer(void)
 }
 
 
-const uint32_t RGBLightRegister[4]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40)};
+const uint32_t RGBLightRegister[5]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40),(TIM15_BASE + 0x38)};
+const uint16_t RGBFadeStep[5] = {300,600,100,50,300};
 void RgbLightFade(void)
 {
 	uint16_t currentCC;
 	uint16_t* rgbData;
 	uint8_t i = 0;
 	rgbData = &(rgbLightValue.RGB_RCompare);
-	for(i=0;i<4;i++)
+	for(i=0;i<5;i++)
 	{
 		currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
 	if(currentCC != *(rgbData+i))
 	{
 		if(currentCC>*(rgbData+i))
 		{
-			currentCC -= 100;
-			if(currentCC<*(rgbData+i))
-				currentCC = *(rgbData+i);
+			if(currentCC<RGBFadeStep[i])
+				currentCC = (*(rgbData+i));
+			else
+			currentCC -= RGBFadeStep[i];
+			if(currentCC<=(*(rgbData+i)))
+				currentCC = (*(rgbData+i));
 		}else 
 		{
-			currentCC += 100;
-			if(currentCC>*(rgbData+i))
-				currentCC = *(rgbData+i);
+			if(currentCC>(0xffff - RGBFadeStep[i]))
+				currentCC = (*(rgbData+i));
+			else
+			currentCC += RGBFadeStep[i];
+			if(currentCC>=(*(rgbData+i)))
+				currentCC = (*(rgbData+i));
 		}
 		*((uint32_t*)RGBLightRegister[i])= currentCC;
 	}
+	}
+		if(ledStandbyFlag == 1)
+	{
+		for(i=0;i<5;i++)
+		{
+			currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
+			if(currentCC!=(*(rgbData+i)))
+				break;	
+		}
+		if(i==5)
+		{
+				LedOffAll();	
+				TIM1_LED_OFF();
+				TIM2_LED_OFF();
+				TIM3_LED_OFF();
+				WIFI_LED_OFF();
+		}
+	
 	}
 }
 

@@ -10,7 +10,7 @@ static void DustDensityProcess(void);
 //static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
 //static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
 //static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
-static void KeyProcess(void);
+ void KeyProcess(void);
 static void TopCoverProcess(void);
 static void BubbleSort(uint16_t*buffer,uint8_t length);
 //void DustBufferSort(uint16_t* buffer,uint8_t length);
@@ -31,10 +31,6 @@ uint16_t speedValueBuf[INPUT_SPEED_BUF_SIZE];
 uint16_t tempValueBuf[INPUT_TEMP_BUF_SIZE];
 uint16_t humiValueBuf[INPUT_HUMI_BUF_SIZE];
 
-//_sLOOPTIMER* inputGasLoop;
-//_sLOOPTIMER* inputlumiLoop;
-//_sLOOPTIMER* inputSpeedLoop;
-//_sLOOPTIMER* inputDustLoop;
 _sLOOPTIMER* ms100Loop;
 _sLOOPTIMER* ms200Loop;
 
@@ -64,7 +60,7 @@ void DeviceInputTask(void* arg)
 
 for(;;)
 {
- KeyProcess();
+ //KeyProcess();
  TopCoverProcess();
  EnvironmentValueScanProcess();
  vTaskDelay(10);// 10ms to task yield
@@ -102,11 +98,12 @@ memset(speedValueBuf,0,INPUT_SPEED_BUF_SIZE);
 * Date:               20170427
 *author:              CTK  luxq
 ***************/
-static void KeyProcess(void)
+ void KeyProcess(void)
 {
 uint16_t keyValue;
 uint8_t keyType;
 uint8_t keyNumber;
+BaseType_t xHigherPriorityTaskWoken;
 
 keyValue = KeyScan();
 keyNumber = (uint8_t)keyValue;
@@ -115,7 +112,7 @@ if((keyNumber <=INPUT_KEY_NUM)&&(keyType<= INPUT_KEY_TYPE_MAX)&&(keyNumber != 0)
 {
    inputMsg->inputMsg = key2Msgtab[keyNumber - 1][keyType - 1];
    if(inputMsgQueue != NULL)
-   xQueueSend(inputMsgQueue,inputMsg,0);
+   xQueueSendFromISR(inputMsgQueue,inputMsg,&xHigherPriorityTaskWoken);
 }
 }
 
@@ -214,8 +211,6 @@ void GasDetection(void)
 	uint16_t gasValue;   
 	static uint8_t gasCnt = 0;
 	static uint16_t* pBuff= gasValueBuf;
-	//if(CheckTickExpired(inputGasLoop))
-	//{
 		gasValue = GetGasAdcValue();
 		*pBuff = gasValue;
 		pBuff++;	
@@ -232,7 +227,6 @@ void GasDetection(void)
 				 inputMsg->paramType = MSG_PARAM_SHORT;		   
 				 xQueueSend(inputMsgQueue, inputMsg, 0);
        }
-	//}
 }
 
 
@@ -259,7 +253,6 @@ void LuminaceDetection(void)
 		   inputMsg->paramType = MSG_PARAM_SHORT;
 		   xQueueSend(inputMsgQueue, inputMsg, 0);
 		}
-	//}
 }
 
 

@@ -1,7 +1,7 @@
 #ifndef _OUTPUTTASK_H_
 #define _OUTPUTTASK_H_
 #include "main.h"
-#define OUTPUT_QUEUE_LEN  0x04
+#define OUTPUT_QUEUE_LEN  0x06
 
 typedef enum
 {
@@ -18,11 +18,19 @@ typedef enum
 	WIFILED_CLOUD,
 	WIFILED_CONFIG
 }_eWIFILED;
+typedef enum
+{
+	TIMINGLED_NONE = 0x00,
+	TIMINGLED_TYPE_1,
+	TIMINGLED_TYPE_2,
+	TIMINGLED_TYPE_3
+}_eTIMINGLED;
 
 typedef struct
 {
   _eBUZTYPE buzType;
   _eWIFILED wifiLedType;	
+	_eTIMINGLED timingLedType;
 }_sOUTPUT_VAR;
 
 typedef enum

@@ -11,6 +11,7 @@ GasGpioInit();
 DeviceAdcInit();
 LightLumiGpioInit();
 SensorI2CGpio_Init();
+KeyTimerInit();
 }
 
 
@@ -97,6 +98,36 @@ uint16_t GetAdcValue(uint32_t channel)
     return adcValue;
 }
 
+
+void KeyTimerInit(void)
+{
+	TIM_TimeBaseInitTypeDef TIM_TimebaseInitStructure;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6,ENABLE);
+	TIM_TimebaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+	TIM_TimebaseInitStructure.TIM_CounterMode =  TIM_CounterMode_Up;
+	TIM_TimebaseInitStructure.TIM_Period = 48000;// 10ms
+	TIM_TimebaseInitStructure.TIM_Prescaler = 9;
+	TIM_TimebaseInitStructure.TIM_RepetitionCounter = 0;  	
+	TIM_TimeBaseInit(TIM6,&TIM_TimebaseInitStructure);
+	TIM_ITConfig(TIM6,TIM_IT_Update,ENABLE);
+	TIM_Cmd(TIM6,ENABLE);
+	NVIC_InitStructure.NVIC_IRQChannel = TIM6_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPriority = 5;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+
+extern void KeyProcess(void);
+void TIM6_IRQHandler(void)
+{
+	if(TIM_GetITStatus(TIM6,TIM_IT_Update))
+	{
+		TIM_ClearITPendingBit(TIM6,TIM_IT_Update);
+		KeyProcess();
+	}
+}
 
 uint16_t GetDustSensorRawData(void)
 {

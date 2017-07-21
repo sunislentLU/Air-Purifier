@@ -2,7 +2,7 @@
 #define _INPUTTASK_H_
 #include "main.h"
 
-#define INPUT_QUEUE_LEN  0x04
+#define INPUT_QUEUE_LEN  4
 #define INPUT_KEY_NUM   0x05
 #define INPUT_KEY_TYPE_MAX 0x03
 #define INPUT_DUST_BUF_SIZE 10

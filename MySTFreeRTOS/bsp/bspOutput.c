@@ -35,10 +35,11 @@ void OutputHardwareInit(void)
 
 void RgbLightInit(void)
 {
-	rgbLightValue.LuminCompare = 0xffff;
+	rgbLightValue.LuminCompare = 0x0000;
 	rgbLightValue.RGB_BCompare = 0xffff;
 	rgbLightValue.RGB_GCompare = 0xffff;
 	rgbLightValue.RGB_RCompare = 0xffff;
+	rgbLightValue.FilterCompare = 0xffff;
 }
 
 void BuzzerGpioInit(void)
@@ -91,7 +92,16 @@ void LedGpioInit(void)
  GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_NOPULL;
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
  GPIO_Init(GPIOA, &GPIO_InitStructre);
- SetLed1Off();
+ POWER_LED_OFF();
+ AUTO_LED_OFF();
+ FAST_LED_OFF();
+ LOW_LED_OFF();
+ MEDIUM_LED_OFF();
+ HIGH_LED_OFF();
+ TIM1_LED_OFF();
+ TIM2_LED_OFF();
+ TIM3_LED_OFF();
+ //SetLed1Off();
 
 }
 
@@ -136,7 +146,7 @@ void RGBLightPwrGpio_init(void)
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_AF;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
  GPIO_InitStructre.GPIO_Pin = GPIO_Pin_6|GPIO_Pin_7;
- GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_UP;
+ GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_DOWN;
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_50MHz;
  GPIO_Init(GPIOA,&GPIO_InitStructre);
 
@@ -146,7 +156,7 @@ void RGBLightPwrGpio_init(void)
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_AF;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
  GPIO_InitStructre.GPIO_Pin = GPIO_Pin_0|GPIO_Pin_1;
- GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_UP;
+ GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_DOWN;
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_50MHz;
  GPIO_Init(GPIOB,&GPIO_InitStructre);
 
@@ -201,7 +211,7 @@ void FanTimerInit(void)
 }
 
 uint16_t buzzPeriod = BUZZER_PERIOD;//48 000/6000 = 8KHz /2 =4KHz
-uint16_t lightDuty = 12000;
+//uint16_t lightDuty = 0xffff;
 void BuzzLightTimerInit(void)
 {    
 	TIM_TimeBaseInitTypeDef TIM_TimebaseInitStructure;
@@ -218,13 +228,14 @@ void BuzzLightTimerInit(void)
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_Toggle;
 	TIM_OCInitstructure.TIM_Pulse = buzzPeriod;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 	TIM_OC1Init(TIM15, &TIM_OCInitstructure);
 	TIM_OC1PreloadConfig(TIM15,TIM_OCPreload_Disable);
 
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
-	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
-	TIM_OCInitstructure.TIM_Pulse = lightDuty;
-	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_Low;
+	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
+	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.FilterCompare;
+	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OC2Init(TIM15, &TIM_OCInitstructure);
 	TIM_Cmd(TIM15,ENABLE);
@@ -250,14 +261,20 @@ void RGBLightTimer_Init(void)
 	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.RGB_RCompare;
 	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
-	TIM_OCInitstructure.TIM_OutputNState = TIM_OutputState_Disable;
+//	TIM_OCInitstructure.TIM_OutputNState = TIM_OutputState_Disable;
 	
 	TIM_OC1Init(TIM3, &TIM_OCInitstructure);
 	TIM_OC2Init(TIM3, &TIM_OCInitstructure);
 	TIM_OC3Init(TIM3, &TIM_OCInitstructure);
+	
+	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
+	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
+	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.LuminCompare;
+	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OC4Init(TIM3, &TIM_OCInitstructure);
 	TIM_Cmd(TIM3,ENABLE);
-	EnableRGBLEDLight(DISABLE);
+	EnableRGBLEDLight(ENABLE);
 }
 void TimerNvicInit(void)
 {
@@ -274,16 +291,17 @@ void TimerNvicInit(void)
  NVIC_Init(&NVIC_InitStructure);
 }
 
-void SetLed1On(void)
-{
-GPIO_ResetBits(GPIOC,GPIO_Pin_13);
-}
+
+//void SetLed1On(void)
+//{
+//GPIO_SetBits(GPIOB,GPIO_Pin_15);
+//}
 
 
-void SetLed1Off(void)
-{
-GPIO_SetBits(GPIOC,GPIO_Pin_13);
-}
+//void SetLed1Off(void)
+//{
+//GPIO_ResetBits(GPIOB,GPIO_Pin_15);
+//}
 
 
 
@@ -378,6 +396,7 @@ void FanTimerStart(void)
 	TIM_SetCounter(TIM1,0x0000);
 	TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
 	TIM_Cmd(TIM1,ENABLE);
+	
 }
 
 

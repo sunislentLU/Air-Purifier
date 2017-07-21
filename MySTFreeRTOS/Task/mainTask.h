@@ -35,11 +35,6 @@
 
 
 
-
-
-
-
-
 #define DEFAULT_MODE           MODE_STANDBY// MODE_AUTO// 
 #define DEFAULT_DUSTVALUE      0
 #define DEFAULT_DUSTSUBVALUE   0
@@ -59,9 +54,9 @@
 #define GAS_UP_THRD      200
 
 #define TIMING_LEVEL_0    0
-#define TIMING_LEVEL_1    1
-#define TIMING_LEVEL_2    4
-#define TIMING_LEVEL_3    8
+#define TIMING_LEVEL_1    (1*3600)
+#define TIMING_LEVEL_2    (4*3600)
+#define TIMING_LEVEL_3    (8*3600)
 
 #define FILTER_CNT_PERIOD  1000
 #define TIMING_CNT_PERIOD  1000
