@@ -166,18 +166,21 @@ void SensorI2CGpio_Init(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	I2C_InitTypeDef I2C_InitStructure;
 
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOF,ENABLE);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C2,ENABLE);
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6|GPIO_Pin_7;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
 	GPIO_Init(GPIOF,&GPIO_InitStructure);
 	I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
 	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
 	I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
 	I2C_InitStructure.I2C_DigitalFilter = 0x00;
-	I2C_InitStructure.I2C_Mode = I2C_Mode_SMBusHost;
-	I2C_InitStructure.I2C_Timing = 0x1045061D;
+	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
+	I2C_InitStructure.I2C_Timing = 0x20D22E37;
+	//I2C_InitStructure.I2C_OwnAddress1 = 0x00;
 	I2C_Init(I2C2,&I2C_InitStructure);
 	I2C_Cmd(I2C2,ENABLE);
 }

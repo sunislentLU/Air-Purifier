@@ -309,9 +309,21 @@ static void SetLightBrightness(uint16_t brightness)
 void SetBlueLed(uint8_t op)
 {
 	if(op == 1)
-  rgbLightValue.FilterCompare = 0x200;
+	{  
+		rgbLightValue.FilterCompare = 0x200;			
+		rgbLightValue.RGB_BCompare = 0x0fff;	
+		rgbLightValue.RGB_GCompare = 0xff00;	
+		rgbLightValue.RGB_RCompare = 0xff00;	
+		rgbLightValue.LuminCompare = 10000;// for test
+	}
 	else
-	 rgbLightValue.FilterCompare = 0xffff;
+	{
+		rgbLightValue.RGB_BCompare = 0xffff;	
+		rgbLightValue.RGB_GCompare = 0xffff;	
+		rgbLightValue.RGB_RCompare = 0xffff;	
+		rgbLightValue.LuminCompare = 0x0000;// for test	
+		rgbLightValue.FilterCompare = 0xffff;
+	}
 }
 
 /****************

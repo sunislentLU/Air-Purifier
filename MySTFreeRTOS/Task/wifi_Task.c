@@ -304,7 +304,7 @@ void WIFITask(void* arg)
 										    {
 												if(wifiFrame->cmd == CMD_SND_ALL_TERM_DATA)	// respond right
 												{
-												//TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
+												TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
 													//break;	
 												}													
 												else// respond error

@@ -263,6 +263,7 @@ void TempHumiScan(void)
 	static uint8_t humiCnt= 0;
 	uint16_t* pBuff;
 	uint16_t humtmp,temptmp;
+	uint32_t tmp;
 	
 	if(GetTempHumValue(&temptmp,&humtmp))	
 	return;
@@ -275,9 +276,11 @@ void TempHumiScan(void)
 		tempCnt = 0;
 		pBuff = tempValueBuf;
 		BubbleSort(pBuff,INPUT_TEMP_BUF_SIZE);
-		inputValue->temp= GetAverPayloadFromBuffer(tempValueBuf,INPUT_TEMP_BUF_SIZE,INPUT_TEMP_IGNORE_SIZE);
+		tmp= GetAverPayloadFromBuffer(tempValueBuf,INPUT_TEMP_BUF_SIZE,INPUT_TEMP_IGNORE_SIZE);
 		memset(pBuff,0,INPUT_TEMP_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_TEMP;
+		//tmp = inputValue->temp;
+		inputValue->temp = ((tmp*165)/65536) - 40;
 		inputMsg->inputMsgParam = (void*)(&inputValue->temp);
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
@@ -287,7 +290,9 @@ void TempHumiScan(void)
 		humiCnt = 0;
 		pBuff = humiValueBuf;
 		BubbleSort(pBuff,INPUT_HUMI_BUF_SIZE);
-		inputValue->humi= GetAverPayloadFromBuffer(humiValueBuf,INPUT_HUMI_BUF_SIZE,INPUT_HUMI_IGNORE_SIZE);
+		tmp= GetAverPayloadFromBuffer(humiValueBuf,INPUT_HUMI_BUF_SIZE,INPUT_HUMI_IGNORE_SIZE);
+		 //tmp = inputValue->humi ;
+		inputValue->humi = (tmp*100)/65536;
 		memset(pBuff,0,INPUT_HUMI_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_HUMI;
 		inputMsg->inputMsgParam = (void*)(&inputValue->humi);

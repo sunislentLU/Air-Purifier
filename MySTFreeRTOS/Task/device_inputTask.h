@@ -30,8 +30,8 @@ uint16_t dustValue;
 uint16_t gasValue;
 uint16_t lumin;
 uint16_t speed;
-uint8_t temp;
-uint8_t humi;
+int8_t temp;
+int8_t humi;
 _eCOVER_STATE coverState;
 }_sINPUTVALUE;
 

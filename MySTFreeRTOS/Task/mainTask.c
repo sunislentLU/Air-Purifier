@@ -246,6 +246,16 @@ void MainTask(void* arg)
 					runningValue.speed.currentSpd = 0;
 				}
 				break;
+			case INPUT_MSG_TEMP:
+				dataTemp = *((int8_t*)mInputMsg->inputMsgParam);	
+			  runningValue.temperature = dataTemp;
+			  
+				break;
+			case INPUT_MSG_HUMI:
+				dataTemp = *((int8_t*)mInputMsg->inputMsgParam);	
+			  runningValue.humi = dataTemp;
+			  
+				break;
 		default:
 			break;
 			}         
@@ -258,10 +268,13 @@ void MainTask(void* arg)
 						dataPointer = (uint8_t*)mWifiRecMsg->wifiMsgParam;
 					if(*dataPointer>=MODE_TEST)
 						break;
+					if(*dataPointer != runningValue.mode)
+					{
 						runningValue.mode = (_eMODE)*dataPointer;
 						MainSetMode((uint8_t*)&runningValue.mode);
 						MainSetSpeed(runningValue.mode);
 						MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+					}
 					break;			   
 					case WIFI_MSG_LED:
 					dataPointer = (uint8_t*)mWifiRecMsg->wifiMsgParam;	
@@ -515,7 +528,7 @@ static void FilterLiveCount(void)
     if(CheckTickExpired(mFilterCnt))
 		{
 			filterCnt.min++;
-			if(filterCnt.min%30 == 0)
+			if(filterCnt.min%10 == 0)
 			{
 				mWifiSndMsg->propMsg = WIFI_UP_ALL;
 				xQueueSend(wifiSndQueue,mWifiSndMsg,0);	
@@ -550,7 +563,12 @@ static void FaultDetection(void)
 {
      if(runningValue.mode!= MODE_STANDBY)
 			 if(runningValue.speed.currentSpd <= 200)
+			 {
 				 runningValue.fault = 0x01;
+//				 mInputMsg->inputMsg = KEY_POWER_PRESS;
+//				 mInputMsg->paramType = MSG_PARAM_NONE;
+//			 	xQueueSend(inputMsgQueue,mInputMsg,0);
+			 }
 }
 
 
@@ -583,6 +601,7 @@ void AqiCaculation(void)
 				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
 				xQueueSend(outputMsgQueue,mOutputMsg,0);				
 			}
+			p_data = (uint16_t*)&globalParameter.atuoSpdRef;
 			 runningValue.speed.targetSpd =*(p_data+aqi_tmp);
 				if(runningValue.speed.currentSpd != runningValue.speed.targetSpd)
 				{
