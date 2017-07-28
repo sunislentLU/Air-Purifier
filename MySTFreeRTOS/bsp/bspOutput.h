@@ -110,11 +110,11 @@
 
 typedef struct
 {
-unsigned short RGB_RCompare;
-unsigned short RGB_GCompare;
-unsigned short RGB_BCompare;
-unsigned short LuminCompare;
-unsigned short FilterCompare;
+unsigned char RGB_RCompare;
+unsigned char RGB_GCompare;
+unsigned char RGB_BCompare;
+unsigned char LuminCompare;
+unsigned char FilterCompare;
 }_sRGBLIGHT;
 
 unsigned char  GetBuzMotorOnOffStatus(void);

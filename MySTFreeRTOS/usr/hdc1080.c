@@ -1,14 +1,15 @@
 #include "hdc1080.h"
 
-
+extern 	void vTaskDelay( const uint32_t xTicksToDelay );
 uint8_t GetTempHumi(uint16_t* temp,uint16_t* hum)
 {
 	
 	uint16_t timeout;
 	uint8_t regAddr;
 	uint16_t config;
+	regAddr = HDC1080_ADDR;
    /* Configure slave address, nbytes, reload and generate start */
-  I2C_TransferHandling(I2C2, HDC1080_ADDR, 1, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
+  I2C_TransferHandling(I2C2, regAddr, 3, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
   /* Wait until TXIS flag is set */
   timeout = HDC1080_TIMEOUT;
   while(I2C_GetFlagStatus(I2C2, I2C_ISR_TXIS) == RESET)
@@ -18,7 +19,7 @@ uint8_t GetTempHumi(uint16_t* temp,uint16_t* hum)
 	regAddr = HDC1080_CONGIG_ADDR;
 	I2C_SendData(I2C2,regAddr); 
 	timeout = HDC1080_TIMEOUT;
-	while(I2C_GetFlagStatus(I2C2, I2C_ISR_TCR) == RESET)
+	while(I2C_GetFlagStatus(I2C2, I2C_ISR_TXIS) == RESET)
   {
     if((timeout--) == 0) return RET_TIMEOUT;
   }
@@ -53,21 +54,15 @@ uint8_t GetTempHumi(uint16_t* temp,uint16_t* hum)
 	{
 		if((timeout--) == 0) return RET_TIMEOUT;
 	}
-	timeout = HDC1080_TIMEOUT;
-	I2C_TransferHandling(I2C2, HDC1080_ADDR, 1, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
-	while(I2C_GetFlagStatus(I2C2, I2C_ISR_TXIS) == RESET)
-	{
-		if((timeout--) == 0) return RET_TIMEOUT;
-	}
-	timeout = HDC1080_TIMEOUT;
-	while(I2C_GetFlagStatus(I2C2,I2C_ISR_NACKF) == SET) //  wait until measure is done
-	{
-		if((timeout--) == 0) return RET_TIMEOUT;
-	}
+	timeout = HDC1080_TIMEOUT;	
+			vTaskDelay(14);//return RET_TIMEOUT;
+	I2C_TransferHandling(I2C2, HDC1080_ADDR, 4, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
+
 	timeout = HDC1080_TIMEOUT;
 	while(I2C_GetFlagStatus(I2C2,I2C_ISR_RXNE) == RESET)
 	{
-	  if((timeout--) == 0) return RET_TIMEOUT;
+	  if((timeout--) == 0) 
+			return RET_TIMEOUT;
 	}
 	*temp = I2C_ReceiveData(I2C2);
 	(*temp)<<=8;

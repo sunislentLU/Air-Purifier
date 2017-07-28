@@ -1,5 +1,7 @@
 #include "device_outputTask.h"
 #include "bspOutput.h"
+#include "stdio.h"
+#include "string.h"
 /******Functions Declare **********/
 extern void SetLed1On(void);
 extern void SetLed1Off(void);
@@ -7,6 +9,8 @@ extern void ChangeFanPeriod(uint16_t freq);
 extern void LoopTimerInit(_sLOOPTIMER * timer, uint16_t interval);
 extern uint8_t CheckTickExpired(_sLOOPTIMER * timer);
 extern void EnableRGBLEDLight(uint8_t en);
+extern uint8_t* GetAqiValue(void);
+extern uint8_t* GetModeState(void);
 extern uint16_t GetRGBCurrentCompare_R(void);
 extern uint16_t GetRGBCurrentCompare_G(void);
 extern uint16_t GetRGBCurrentCompare_B(void);
@@ -16,13 +20,17 @@ extern uint16_t GetLightCurrentCompare(void);
 void LedOffAll(void);
 void OutputVariablesInit(void);
 static void SetFanSpeed(uint16_t spd);
-static void SetMode(_eMODE mode);
+static void SetMode(uint8_t mode);
 static void SetLightBrightness(uint16_t brightness);
 void SetBlueLed(uint8_t op);
 static void SetBuzzer(uint8_t op);
 void SetTimgLed(uint8_t timingType);
 void BuzzerLedTimer(void);
 void RgbLightFade(void);
+void SetAllLedPowerOff(void);
+void SetAllLedPowerOn(void);
+void SetTestSpdType(uint8_t tstspdtype);
+void SetTestSpdValue(uint8_t spd);
 
 /*********Variables*****/
 extern xTaskHandle deviceOutputTask;
@@ -32,6 +40,15 @@ _sOUTPUT_VAR outputVariable;
 _sLOOPTIMER* buzLedTimer;
 extern _sRGBLIGHT rgbLightValue;
 
+const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x1f,0x3f,0xff,0xff,0xff},
+	                             {0x8f,0xff,0x2f,0xff,0xff},{0xef,0x3f,0x00,0xff,0xff}};
+const _sRGBLIGHT rgbValueRefDark[4]={{0x00,0x00,0x00,0x00,0x00},{0x02,0x04,0x10,0x10,0x10},
+	                             {0x09,0x10,0x03,0x10,0x10},{0x0f,0x04,0x00,0x10,0x10}};
+
+const uint32_t RGBLightRegister[5]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40),(TIM15_BASE + 0x38)};
+const uint16_t RGBFadeStep[3][5] = {{0x1ff,0x3ff,0xfff,0xfff,0xfff},
+                                    {0x8ff,0xfff,0x2ff,0xfff,0xfff},
+                                    {0xeff,0x3ff,0xfff,0xfff,0xfff}};
 /****************
 * Function Name:      DeviceOutputTask
 * Description:        hardware interface control setting  
@@ -41,9 +58,11 @@ extern _sRGBLIGHT rgbLightValue;
 * Date:               20170502
 *author:              CTK  luxq
 ********************************/
+																		   
+uint8_t mode;
 void DeviceOutputTask(void* arg)
 {
-   uint8_t mode;
+	uint16_t dataTmp;
    OutputHardwareInit();
 for(;;)
 {
@@ -58,18 +77,30 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 			}else
 			{
 				mode = *((uint8_t*)outputMsg->outputMsgParam);
+				if(mode >= MODE_TEST)
+				{
+					//SetAllLedPowerOn();
+					rgbLightValue.LuminCompare = 0x7f;
+					SetTestSpdType(mode);
+
+				}else
 				SetMode((_eMODE)mode);
 			}
 		   	break;           
 			 case OUTPUT_MSG_LIGHT:
-		   	if(outputMsg->paramType == MSG_PARAM_INT)
-		   	{
-           SetLightBrightness(*((uint16_t*)outputMsg->outputMsgParam));
-			  }else      
-			 {
-               ;// can not return  task is not allow return 
-		     
-			 }
+			 	dataTmp = *((uint16_t*)outputMsg->outputMsgParam);
+				if(dataTmp >=5)
+				{
+					SetLightBrightness(rgbValueRef[1].LuminCompare);
+					rgbLightValue.FilterCompare = rgbValueRef[1].FilterCompare;
+					outputVariable.light = LIGHT_BRIGHT;
+				}
+				else if(dataTmp == 0)
+				{
+				outputVariable.light = LIGHT_DARK;
+				SetLightBrightness(rgbValueRefDark[1].LuminCompare);
+				rgbLightValue.FilterCompare = rgbValueRefDark[1].FilterCompare;
+				}
 		   	break;
 		   case OUTPUT_MSG_BLUELED:
 		   	if(outputMsg->paramType == MSG_PARAM_UCHAR)
@@ -88,15 +119,29 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 		   	break;
 		   case OUTPUT_MSG_SPEED:
 		     if(outputMsg->paramType == MSG_PARAM_USHORT)	   	
-				 {			
-					 SetFanSpeed(*((uint16_t*)outputMsg->outputMsgParam));
+				 {	
+				 	dataTmp = *((uint16_t*)outputMsg->outputMsgParam);
+					 SetFanSpeed(dataTmp);
+					if(mode >= MODE_TEST)
+					{
+						dataTmp/=10;
+						if( mode >= TEST_LED_SPDLOW)
+						SetTestSpdValue((uint8_t)dataTmp);
+					}
+					 
 				 }else		
 				 {
                 ;		
 				 }
 		   	break;
 		   case OUTPUT_MSG_RGB:
-				 
+				 dataTmp = *((uint8_t*)outputMsg->outputMsgParam);
+				 outputVariable.aqiLevel = (uint8_t)dataTmp;
+			if(outputVariable.light == LIGHT_BRIGHT)
+				memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+			else
+				memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+				
 		   	break;
 			 case OUTPUT_MSG_TIMING:				 
 				 SetTimgLed((*(uint8_t*)outputMsg->outputMsgParam));
@@ -175,14 +220,12 @@ static void SetFanSpeed(uint16_t spd)
 *author:              CTK  luxq
 ********************************/
 uint8_t ledStandbyFlag;
-static void SetModeLed(_eMODE mode)
+static void SetModeLed(uint8_t mode)
 {
-
   switch(mode)
   {
   case MODE_STANDBY:
   	//POWER_LED_OFF();
-
   break;
   case MODE_AUTO:
 	LedOffAll();  	
@@ -211,6 +254,31 @@ static void SetModeLed(_eMODE mode)
   	HIGH_LED_ON();
 	  POWER_LED_ON();
   	break;
+	case TEST_LED_SOFT:
+		break;
+	case 	TEST_LED_WKT:
+		break;
+	case TEST_LED_FILT:
+		break;	
+	case TEST_LED_SEN:
+		break;
+	case TEST_LED_KEY:
+		break;
+	case TEST_LED_PARAM:
+	break;		
+	case TEST_LED_SPDLOW:
+		LedOffAll();
+		break;
+	case TEST_LED_SPDHIGH:
+		break;
+	case TEST_LED_SPDALOW:
+		break;
+	case TEST_LED_SPDAMED:
+		break;
+	case TEST_LED_SPDAHIGH:
+		break;
+	case TEST_LED_SPDFAST:
+		break;
   default:
   	break;
   }
@@ -223,18 +291,17 @@ void SetTimgLed(uint8_t timingType)
 	TIM2_LED_OFF();
 	TIM3_LED_OFF();
   switch(timingType)
-  {
-  case TIMINGLED_NONE:
-	TIM1_LED_OFF();
-	TIM2_LED_OFF();
-	TIM3_LED_OFF();
-  	break;
-  case TIMINGLED_TYPE_1:
+  {  
+		case TIMINGLED_NONE:		
+		TIM1_LED_OFF();
+		TIM2_LED_OFF();
+		TIM3_LED_OFF();
+  	break;  
+		case TIMINGLED_TYPE_1:			
 		TIM1_LED_ON();
   	break;
   case TIMINGLED_TYPE_2:
 		TIM2_LED_ON();
-
   	break;
   case TIMINGLED_TYPE_3:
 		TIM3_LED_ON();
@@ -242,10 +309,24 @@ void SetTimgLed(uint8_t timingType)
   default:
   	break;
   }
-
-
-
 }
+
+
+
+void SetAllLedPowerOff(void)
+{			
+	memcpy(&rgbLightValue,&rgbValueRef[0],sizeof(_sRGBLIGHT));
+}
+
+
+void SetAllLedPowerOn(void)
+{			
+	memcpy(&rgbLightValue,&rgbValueRef[1],sizeof(_sRGBLIGHT));
+}
+
+
+
+
 /****************
 * Function Name:      SetModeLed
 * Description:        change gpio to set mode led state
@@ -256,25 +337,18 @@ void SetTimgLed(uint8_t timingType)
 *author:              CTK  luxq
 ********************************/
 uint8_t 	ledStandbyFlag = 1;
-static void SetMode(_eMODE mode)
+static void SetMode(uint8_t mode)
 {  
 	SetModeLed(mode); 
 	if(mode!=MODE_STANDBY)
 	{
-			ledStandbyFlag = 0;
-	rgbLightValue.RGB_BCompare = 0x0fff;
-	rgbLightValue.RGB_GCompare = 0xff00;
-	rgbLightValue.RGB_RCompare = 0xff00;
-	rgbLightValue.LuminCompare = 10000;// for test
-	rgbLightValue.FilterCompare = 0x200;
+		ledStandbyFlag = 0;
+		//SetAllLedPowerOn();
+
 	}else
-	{	
-			ledStandbyFlag = 1;
-		rgbLightValue.RGB_BCompare = 0xffff;	
-		rgbLightValue.RGB_GCompare = 0xffff;	
-		rgbLightValue.RGB_RCompare = 0xffff;	
-		rgbLightValue.LuminCompare = 0x0000;// for test	
-		rgbLightValue.FilterCompare = 0xffff;
+	{				
+		ledStandbyFlag = 1;
+		SetAllLedPowerOff();
 	}
 	
 }
@@ -308,10 +382,10 @@ static void SetLightBrightness(uint16_t brightness)
 ********************************/
 void SetBlueLed(uint8_t op)
 {
-	if(op == 1)
-  rgbLightValue.FilterCompare = 0x200;
-	else
-	 rgbLightValue.FilterCompare = 0xffff;
+	if(op == 1)  
+		SetAllLedPowerOn();	
+	else	
+		SetAllLedPowerOff();	
 }
 
 /****************
@@ -368,7 +442,7 @@ void BuzzerLedTimer(void)
 		case BUZ_TYPE_CONF:
 			if(buzCnt==0)
 			BuzzerOnOff(ON);
-			if(buzCnt == 50)
+			if(buzCnt >= 20)
 			{
 				BuzzerOnOff(OFF);
 				buzCnt = 0;
@@ -408,7 +482,8 @@ void BuzzerLedTimer(void)
 		default:
 			break;
 		}
-
+    if(mode<MODE_TEST)
+		{
 		switch(outputVariable.wifiLedType)
 		{
 		case WIFILED_UCON:
@@ -437,52 +512,67 @@ void BuzzerLedTimer(void)
 		default:
 			break;
 		}
-		RgbLightFade();
+		
 	}
+		RgbLightFade();
+}
 	
 	
 }
 
 
-const uint32_t RGBLightRegister[5]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40),(TIM15_BASE + 0x38)};
-const uint16_t RGBFadeStep[5] = {300,600,100,50,300};
 void RgbLightFade(void)
 {
 	uint16_t currentCC;
-	uint16_t* rgbData;
-	uint8_t i = 0;
+	uint8_t* rgbData;
+	uint16_t tmp = 0;
+	uint16_t tmp2;
+	uint8_t i = 0,j=0;
 	rgbData = &(rgbLightValue.RGB_RCompare);
+	j = *(uint8_t*)GetAqiValue();
 	for(i=0;i<5;i++)
 	{
 		currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
-	if(currentCC != *(rgbData+i))
+		tmp = *(rgbData+i);
+		tmp <<=7;
+//	 if(((*GetModeState())== 0)||(tmp == 0x0000))
+//	 tmp&=0xff00; 
+//	 else
+//		 tmp|=0xff;
+	if(currentCC != tmp)
 	{
-		if(currentCC>*(rgbData+i))
+		if(currentCC>tmp)
 		{
-			if(currentCC<RGBFadeStep[i])
-				currentCC = (*(rgbData+i));
+			tmp2 = RGBFadeStep[j][i];
+			tmp2>>=2;
+			if(currentCC<tmp2)
+				currentCC = tmp;
 			else
-			currentCC -= RGBFadeStep[i];
-			if(currentCC<=(*(rgbData+i)))
-				currentCC = (*(rgbData+i));
+			currentCC -= tmp2;
+			if(currentCC<=(tmp))
+				currentCC = (tmp);
 		}else 
 		{
-			if(currentCC>(0xffff - RGBFadeStep[i]))
-				currentCC = (*(rgbData+i));
+			tmp2 = RGBFadeStep[j][i];
+			tmp2>>=2;
+			if(currentCC>(0xffff - tmp2))
+				currentCC = (tmp);
 			else
-			currentCC += RGBFadeStep[i];
-			if(currentCC>=(*(rgbData+i)))
-				currentCC = (*(rgbData+i));
+			currentCC += tmp2;
+			if(currentCC>=tmp)
+				currentCC = tmp;
 		}
 		*((uint32_t*)RGBLightRegister[i])= currentCC;
 	}
 	}
 		if(ledStandbyFlag == 1)
 	{
+		tmp = *(rgbData+i);
+		tmp <<=8;
 		for(i=0;i<5;i++)
 		{
 			currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
-			if(currentCC!=(*(rgbData+i)))
+			if(currentCC!=tmp)
 				break;	
 		}
 		if(i==5)
@@ -496,6 +586,88 @@ void RgbLightFade(void)
 	
 	}
 }
+
+
+void SetTestSpdType(uint8_t tstspdtype)
+{
+	switch(tstspdtype)
+	{
+		case TEST_LED_SPDLOW:
+			POWER_LED_OFF();
+			WIFI_LED_OFF();
+			rgbLightValue.RGB_BCompare = 0x7f;
+			break;
+		case TEST_LED_SPDMED:
+			POWER_LED_OFF();
+			WIFI_LED_ON();
+			rgbLightValue.RGB_BCompare = 0x00;
+			break;
+		case TEST_LED_SPDHIGH:
+			POWER_LED_OFF();
+			WIFI_LED_ON();
+			rgbLightValue.RGB_BCompare = 0x7f;
+			break;
+		case TEST_LED_SPDALOW:
+			POWER_LED_ON();
+			WIFI_LED_OFF();
+			rgbLightValue.RGB_BCompare = 0x00;
+			break;
+		case TEST_LED_SPDAMED:
+			POWER_LED_ON();
+			WIFI_LED_OFF();
+			rgbLightValue.RGB_BCompare = 0x7f;
+			break;
+		case TEST_LED_SPDAHIGH:
+			POWER_LED_ON();
+			WIFI_LED_ON();
+			rgbLightValue.RGB_BCompare = 0x00;
+			break;
+		default:
+	break;
+	}
+
+}
+
+
+void SetTestSpdValue(uint8_t spd)
+{
+	if(spd&0x80)
+		AUTO_LED_ON();
+	else
+		AUTO_LED_OFF();
+	if(spd&0x40)
+		FAST_LED_ON();
+	else
+		FAST_LED_OFF();
+	if(spd&0x20)
+		LOW_LED_ON();		
+	else
+		LOW_LED_OFF();	
+
+	if(spd&0x10)
+		MEDIUM_LED_ON();		
+	else
+		MEDIUM_LED_OFF();	
+	if(spd&0x08)
+		HIGH_LED_ON();		
+	else
+		HIGH_LED_OFF();	
+	if(spd&0x04)
+		TIM1_LED_ON();		
+	else
+		TIM1_LED_OFF();	
+	if(spd&0x02)
+		TIM2_LED_ON();		
+	else
+		TIM2_LED_OFF();	
+	if(spd&0x01)
+		TIM3_LED_ON();		
+	else
+		TIM3_LED_OFF();	
+}
+
+
+
 
 
 

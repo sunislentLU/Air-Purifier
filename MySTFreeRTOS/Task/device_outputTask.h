@@ -5,6 +5,11 @@
 
 typedef enum
 {
+	LIGHT_DARK = 0x00,
+	LIGHT_BRIGHT
+}_eLIGHT_STATE;
+typedef enum
+{
  BUZ_TYPE_NONE = 0x00,
  BUZ_TYPE_KEY,
  BUZ_TYPE_CONF,
@@ -31,6 +36,8 @@ typedef struct
   _eBUZTYPE buzType;
   _eWIFILED wifiLedType;	
 	_eTIMINGLED timingLedType;
+	uint8_t     aqiLevel;
+	uint8_t light;
 }_sOUTPUT_VAR;
 
 typedef enum

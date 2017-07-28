@@ -4,26 +4,29 @@
 #define DEFALUT_SOFTVER       0x03
 
 
+#define FAST_MODE_TIME      30//minute
+
+
 #define DEFAULT_SNZ_SPD_REF    500 // default snooze mode fan speed Unit rpm
-#define DEFAULT_JET_SPD_REF    2000 
+#define DEFAULT_JET_SPD_REF    1600 
 #define DEFAULT_LOW_SPD_REF    600
 #define DEFAULT_MEDIUM_SPD_REF 1000
-#define DEFAULT_HIGH_SPD_REF   1800
+#define DEFAULT_HIGH_SPD_REF   1500
 #define DEFAULT_STANDBY_SPD_REF 0
 
 
 #define DEFAULT_AUTO_LOW       600
 #define DEFAULT_AUTO_MED       1200
-#define DEFAULT_AUTO_HIGH      1800
+#define DEFAULT_AUTO_HIGH      1500
 
 
 #define DEFAULT_DUST_GOOD_REF  80
-#define DEFAULT_DUST_FINE_REF  120
+#define DEFAULT_DUST_FINE_REF  200
 #define DEFAULT_DUST_BAD_REF   300
 
-#define DEFAULT_GAS_GOOD_REF   200
-#define DEFAULT_GAS_FINE_REF   800
-#define DEFAULT_GAS_BAD_REF    1000
+#define DEFAULT_GAS_GOOD_REF   80
+#define DEFAULT_GAS_FINE_REF   40
+#define DEFAULT_GAS_BAD_REF   20
 
 #define DEFAULT_LUMIN_DARK    100
 #define DEFAULT_LUMIN_LIGHT   500
@@ -31,8 +34,11 @@
 #define DEFAULT_RESET_HOUR      0
 #define DEFAULT_MAX_USE_HOUR   5000
 
-#define DEFAULT_GAS_BASE       100
+#define DEFAULT_GAS_BASE       2382
 
+
+#define GAS_WARM_TIME         10 //warm up time 180 second
+#define GAS_BASE_ADJ_TIME     600 // 10 minute time adjust the base value
 
 
 #define DEFAULT_MODE           MODE_STANDBY// MODE_AUTO// 
@@ -84,7 +90,8 @@ uint8_t hour;
 typedef enum
 {
 FILTER_STATE_USEABLE,// filter live time is not expired 
-FILTER_STATE_CHANGED// filter live time is expird need to change
+FILTER_STATE_CHANGED,// filter live time is expird need to change
+FILTER_STATE_CLEAR
 }_eFILTER_STATE;
 
 
@@ -132,9 +139,9 @@ typedef struct
 typedef struct
 {
 _sSPEED_REFERENCE speedRef;
+_sAUTOSPD_REF  atuoSpdRef;
 _sDUST_REFERENCE dustRef;
 _sGAS_REFERENCE gasRef;
-_sAUTOSPD_REF  atuoSpdRef;
 _sLUMIN_REF lumiRef;
 _sFILTERLIVE filterVar;
 uint16_t workingTime;
@@ -182,6 +189,8 @@ _sSPEED speed;// running speed
 uint16_t gasValue;// current gas value adc value
 uint16_t lumin;
 uint8_t netStatus;
+int16_t temperature;
+int8_t humi;
 }_sRUNNINGVALUE;
 
 #endif

@@ -32,14 +32,11 @@ void OutputHardwareInit(void)
 
 }
 
-
+extern void SetAllLedPowerOn(void);
+extern void SetAllLedPowerOff(void);
 void RgbLightInit(void)
 {
-	rgbLightValue.LuminCompare = 0x0000;
-	rgbLightValue.RGB_BCompare = 0xffff;
-	rgbLightValue.RGB_GCompare = 0xffff;
-	rgbLightValue.RGB_RCompare = 0xffff;
-	rgbLightValue.FilterCompare = 0xffff;
+	SetAllLedPowerOff();
 }
 
 void BuzzerGpioInit(void)
@@ -211,9 +208,9 @@ void FanTimerInit(void)
 }
 
 uint16_t buzzPeriod = BUZZER_PERIOD;//48 000/6000 = 8KHz /2 =4KHz
-//uint16_t lightDuty = 0xffff;
 void BuzzLightTimerInit(void)
-{    
+{ 
+  uint16_t tmp;	
 	TIM_TimeBaseInitTypeDef TIM_TimebaseInitStructure;
 	TIM_OCInitTypeDef TIM_OCInitstructure;
 
@@ -232,10 +229,12 @@ void BuzzLightTimerInit(void)
 	TIM_OC1Init(TIM15, &TIM_OCInitstructure);
 	TIM_OC1PreloadConfig(TIM15,TIM_OCPreload_Disable);
 
+	tmp = rgbLightValue.FilterCompare;
+	tmp <<=8;
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
-	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
-	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.FilterCompare;
-	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
+	TIM_OCInitstructure.TIM_Pulse = tmp;
+	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_Low;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OC2Init(TIM15, &TIM_OCInitstructure);
 	TIM_Cmd(TIM15,ENABLE);
@@ -246,6 +245,8 @@ void BuzzLightTimerInit(void)
 
 void RGBLightTimer_Init(void)
 {
+	uint16_t temp;
+
 	TIM_TimeBaseInitTypeDef TIM_TimebaseInitStructure;
 	TIM_OCInitTypeDef TIM_OCInitstructure;
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,ENABLE);
@@ -255,21 +256,25 @@ void RGBLightTimer_Init(void)
 	TIM_TimebaseInitStructure.TIM_Prescaler = 0;
 	TIM_TimebaseInitStructure.TIM_RepetitionCounter = 0;  	
 	TIM_TimeBaseInit(TIM3,&TIM_TimebaseInitStructure);
-
+		
+	temp = rgbLightValue.RGB_RCompare;
+	temp <<=8;
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
-	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
-	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.RGB_RCompare;
-	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
+	TIM_OCInitstructure.TIM_Pulse = temp;
+	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_Low;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
-//	TIM_OCInitstructure.TIM_OutputNState = TIM_OutputState_Disable;
 	
 	TIM_OC1Init(TIM3, &TIM_OCInitstructure);
 	TIM_OC2Init(TIM3, &TIM_OCInitstructure);
 	TIM_OC3Init(TIM3, &TIM_OCInitstructure);
 	
+		
+	temp = rgbLightValue.LuminCompare;
+	temp <<=8;
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
 	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Reset;
-	TIM_OCInitstructure.TIM_Pulse = rgbLightValue.LuminCompare;
+	TIM_OCInitstructure.TIM_Pulse = temp;
 	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_High;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OC4Init(TIM3, &TIM_OCInitstructure);

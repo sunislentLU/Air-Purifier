@@ -2,7 +2,7 @@
 #define _HDC1080_H_
 #include "stm32F0xx.h"
 
-#define HDC1080_ADDR  40
+#define HDC1080_ADDR  0x80
 #define HDC1080_TIMEOUT 0x1000
 #define HDC1080_CONGIG_ADDR 0x02
 #define HDC1080_TEMP_ADDR  0x00

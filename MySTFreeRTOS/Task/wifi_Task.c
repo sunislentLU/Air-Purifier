@@ -26,6 +26,8 @@ extern uint8_t* GetTimingValue(void);
 extern uint8_t* GetFilterRemain(void);
 extern uint8_t* GetLedState(void);
 extern uint8_t* GetDevFault(void);
+extern uint8_t* GetTemp(void);
+extern uint8_t* GetHumi(void);
 extern uint8_t* GetFirmwareVersion(void);
 extern uint8_t* GetCoverState(void);
 extern uint8_t* GetTVOCValue(void);
@@ -77,6 +79,8 @@ const _sTERMI_FORMAT termination_info[]={
 {0x01,MSG_PARAM_UCHAR,GetFilterRemain}, //filter remain persent
 {0x01,MSG_PARAM_UCHAR,GetLedState},     // led state
 {0x02,MSG_PARAM_USHORT,GetDevFault},    //deveice fault warning
+{0x02,MSG_PARAM_SHORT,GetTemp},         // device enviroment temperature
+{0x01,MSG_PARAM_UCHAR,GetHumi},         // device humidity
 {0x02,MSG_PARAM_USHORT,GetFirmwareVersion},// firmware version
 {0x01,MSG_PARAM_UCHAR,GetCoverState},   //cover state
 {0x02,MSG_PARAM_USHORT,GetTVOCValue},    //tvoc value of resistor
@@ -181,7 +185,7 @@ void WIFITask(void* arg)
 				 
 		   }
 	    }
-			 vTaskDelay(1000);
+			 vTaskDelay(100);
 		}else // 1000 ms no respond 
 		{
        
@@ -246,7 +250,7 @@ void WIFITask(void* arg)
 			     }else
 			     {
 			       SendCmd2WifiModule(CMD_SET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);
-			       if(xSemaphoreTake(semRecComplete, 100))
+			       if(xSemaphoreTake(semRecComplete, 1000))
 				     {
 				        if(ParseWifiDatas(wifiFrame))
 								{
@@ -270,7 +274,7 @@ void WIFITask(void* arg)
 		    }
 	    }else //not get pid and pkey respond
 			{
-				
+				vTaskDelay(1000);
 				
 			}
 		}
@@ -304,7 +308,7 @@ void WIFITask(void* arg)
 										    {
 												if(wifiFrame->cmd == CMD_SND_ALL_TERM_DATA)	// respond right
 												{
-												//TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
+												TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
 													//break;	
 												}													
 												else// respond error

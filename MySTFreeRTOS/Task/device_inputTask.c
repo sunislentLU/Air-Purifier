@@ -23,13 +23,13 @@ uint8_t CheckTickExpired(_sLOOPTIMER* timer);
 _sINPUTVALUE* inputValue;// input task global variables struct 
 _sINPUT_MSG* inputMsg;// input messages struct 
 QueueHandle_t inputMsgQueue;// message queue use to send message to maintask from inputtask
-SemaphoreHandle_t inputDustSem;// dust sensor have received a data
-uint16_t dustValueBuf[INPUT_DUST_BUF_SIZE];// dust value buffer use to store dust value 
+//SemaphoreHandle_t inputDustSem;// dust sensor have received a data
+//uint16_t dustValueBuf[INPUT_DUST_BUF_SIZE];// dust value buffer use to store dust value 
 uint16_t gasValueBuf[INPUT_GAS_BUF_SIZE];
 uint16_t luminValueBuf[INPUT_LUMI_BUF_SIZE];
 uint16_t speedValueBuf[INPUT_SPEED_BUF_SIZE];
-uint16_t tempValueBuf[INPUT_TEMP_BUF_SIZE];
-uint16_t humiValueBuf[INPUT_HUMI_BUF_SIZE];
+//uint16_t tempValueBuf[INPUT_TEMP_BUF_SIZE];
+//uint16_t humiValueBuf[INPUT_HUMI_BUF_SIZE];
 
 _sLOOPTIMER* ms100Loop;
 _sLOOPTIMER* ms200Loop;
@@ -76,14 +76,12 @@ void InputVariableInit(void)
 inputValue = pvPortMalloc(sizeof(_sINPUTVALUE));
 inputMsg = pvPortMalloc(sizeof(_sINPUT_MSG));
 inputMsgQueue = xQueueCreate(INPUT_QUEUE_LEN,sizeof(_sINPUT_MSG));
-inputDustSem = xSemaphoreCreateBinary();
+//inputDustSem = xSemaphoreCreateBinary();
 
   ms100Loop = pvPortMalloc(sizeof(_sLOOPTIMER));
 	ms200Loop = pvPortMalloc(sizeof(_sLOOPTIMER));
 	LoopTimerInit(ms100Loop,100);
 	LoopTimerInit(ms200Loop,200);
-
-memset(dustValueBuf,0,INPUT_DUST_BUF_SIZE);
 memset(gasValueBuf,0,INPUT_GAS_BUF_SIZE);
 memset(luminValueBuf,0,INPUT_LUMI_BUF_SIZE);
 memset(speedValueBuf,0,INPUT_SPEED_BUF_SIZE);
@@ -142,29 +140,41 @@ static void TopCoverProcess(void)
 *author:              CTK  luxq
 
 ***************/
+extern uint8_t GetParticalDensity(uint16_t*pm25,uint16_t* pm100);
 static void DustDensityProcess(void)
 {
   uint16_t dustValue;
-	static uint8_t dustCnt = 0;
-	static uint16_t* pBuff = dustValueBuf;
+	uint16_t dustSubValue;
+//	static uint8_t dustCnt = 0;
+	//static uint16_t* pBuff = dustValueBuf;
 	//if(CheckTickExpired(inputSpeedLoop)== pdTRUE)// wait dust sensor receive data in 1 sencond 
-	//{		
-		dustValue = GetDustSensorRawData();
-		*pBuff = dustValue;
-		dustCnt++;
-		pBuff++;
-		if(dustCnt >= INPUT_DUST_BUF_SIZE)
-		{           
-			dustCnt = 0;
-			pBuff = dustValueBuf;
-			BubbleSort(pBuff,INPUT_DUST_BUF_SIZE);
-			inputValue->dustValue = GetAverPayloadFromBuffer(dustValueBuf,INPUT_DUST_BUF_SIZE,INPUT_DUST_IGNORE_SIZE);
-			memset(pBuff,0x00,INPUT_DUST_BUF_SIZE*2);
-			inputMsg->inputMsg = INPUT_MSG_DUST;
-			inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);
-			inputMsg->paramType = MSG_PARAM_SHORT;
-			xQueueSend(inputMsgQueue, inputMsg, 0);
-		}
+	//{				
+	//dustValue = GetDustSensorRawData();
+	GetParticalDensity(&dustValue,&dustSubValue);
+	inputValue->dustValue = dustValue;
+	inputMsg->inputMsg = INPUT_MSG_DUST;			
+	inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);			
+	inputMsg->paramType = MSG_PARAM_SHORT;
+	xQueueSend(inputMsgQueue, inputMsg, 0);
+		
+	inputValue->dustSubValue = dustSubValue;
+	inputMsg->inputMsg = INPUT_MSG_DUST_SUB;			
+	inputMsg->inputMsgParam = (void*)&(inputValue->dustSubValue);			
+	inputMsg->paramType = MSG_PARAM_SHORT;
+	xQueueSend(inputMsgQueue, inputMsg, 0);
+	
+//		//*pBuff = dustValue;
+//		//dustCnt++;
+//		//pBuff++;
+//		//if(dustCnt >= INPUT_DUST_BUF_SIZE)
+//		{           
+//			dustCnt = 0;
+//			pBuff = dustValueBuf;
+//			BubbleSort(pBuff,INPUT_DUST_BUF_SIZE);
+//			inputValue->dustValue = GetAverPayloadFromBuffer(dustValueBuf,INPUT_DUST_BUF_SIZE,INPUT_DUST_IGNORE_SIZE);
+//			memset(pBuff,0x00,INPUT_DUST_BUF_SIZE*2);
+//			
+//		}
 	//}
 }
 
@@ -259,41 +269,52 @@ void LuminaceDetection(void)
 
 void TempHumiScan(void)
 {
-	static uint8_t tempCnt = 0;
-	static uint8_t humiCnt= 0;
-	uint16_t* pBuff;
+//	static uint8_t tempCnt = 0;
+//	static uint8_t humiCnt= 0;
+//	uint16_t* pBuff;
 	uint16_t humtmp,temptmp;
+	uint32_t tmp;
 	
 	if(GetTempHumValue(&temptmp,&humtmp))	
 	return;
-	tempValueBuf[tempCnt] = temptmp;
-	humiValueBuf[humiCnt] = humtmp;
-	tempCnt ++;   
-  humiCnt ++;	
-	if(tempCnt >= INPUT_TEMP_BUF_SIZE)     
-	{			
-		tempCnt = 0;
-		pBuff = tempValueBuf;
-		BubbleSort(pBuff,INPUT_TEMP_BUF_SIZE);
-		inputValue->temp= GetAverPayloadFromBuffer(tempValueBuf,INPUT_TEMP_BUF_SIZE,INPUT_TEMP_IGNORE_SIZE);
-		memset(pBuff,0,INPUT_TEMP_BUF_SIZE*2);
+//	tempValueBuf[tempCnt] = temptmp;
+//	humiValueBuf[humiCnt] = humtmp;
+//	tempCnt ++;   
+//  humiCnt ++;	
+//	if(tempCnt >= INPUT_TEMP_BUF_SIZE)     
+//	{			
+//		tempCnt = 0;
+//		pBuff = tempValueBuf;
+//		BubbleSort(pBuff,INPUT_TEMP_BUF_SIZE);
+//		tmp= GetAverPayloadFromBuffer(tempValueBuf,INPUT_TEMP_BUF_SIZE,INPUT_TEMP_IGNORE_SIZE);
+//		memset(pBuff,0,INPUT_TEMP_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_TEMP;
+		//tmp = inputValue->temp;
+	  tmp = temptmp;
+		tmp*=165;
+		tmp>>=16;
+		tmp -= 40;
+		inputValue->temp = tmp;//((tmp*165)/65536) - 40;
 		inputMsg->inputMsgParam = (void*)(&inputValue->temp);
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
-	}
-	if(humiCnt >= INPUT_HUMI_BUF_SIZE)
-	{			
-		humiCnt = 0;
-		pBuff = humiValueBuf;
-		BubbleSort(pBuff,INPUT_HUMI_BUF_SIZE);
-		inputValue->humi= GetAverPayloadFromBuffer(humiValueBuf,INPUT_HUMI_BUF_SIZE,INPUT_HUMI_IGNORE_SIZE);
-		memset(pBuff,0,INPUT_HUMI_BUF_SIZE*2);
+//	}
+//	if(humiCnt >= INPUT_HUMI_BUF_SIZE)
+//	{			
+//		humiCnt = 0;
+//		pBuff = humiValueBuf;
+//		BubbleSort(pBuff,INPUT_HUMI_BUF_SIZE);
+//		tmp= GetAverPayloadFromBuffer(humiValueBuf,INPUT_HUMI_BUF_SIZE,INPUT_HUMI_IGNORE_SIZE);
+    tmp = humtmp;
+		tmp *=100;
+		tmp>>=16;
+		inputValue->humi = tmp;//(tmp*100)/65536;
+//		memset(pBuff,0,INPUT_HUMI_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_HUMI;
 		inputMsg->inputMsgParam = (void*)(&inputValue->humi);
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
-	}
+//	}
 }
 
 
@@ -301,12 +322,18 @@ void TempHumiScan(void)
 
 void EnvironmentValueScanProcess(void)
 {
+	static uint8_t count;
 	if(CheckTickExpired(ms100Loop) == 1)
 	{
+		count++;
 		LuminaceDetection();
 		SpeedScan();
-		DustDensityProcess();
-		TempHumiScan();
+		if(count >=10)
+		{
+			count = 0;
+		 DustDensityProcess();
+		 TempHumiScan();
+		}
 	}
 	if(CheckTickExpired(ms200Loop) == 1)
 	{
@@ -520,7 +547,29 @@ void LoopTimerInit(_sLOOPTIMER* timer,uint16_t interval)
 //   xSemaphoreGiveFromISR(inputDustSem, 0);
 //}
 
+uint8_t CheckTestMode(void)
+{
+	uint8_t ret = 0;
+	if((GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_2) == 0)&&(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_10) == 0))
+	{
+		vTaskDelay(50);
+		if((GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_2) == 0)&&(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_10) == 0))
+		
+			ret = TEST_MODE_VER;
+		
+	}
+	else if((GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_2) == 0)&&(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_11) == 0))
+	{
+		vTaskDelay(50);
+		if((GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_2) == 0)&&(GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_11) == 0))
+		
+			ret = TEST_MODE_SPD;
+	}
+	else ret = 0;
 
+ return ret;
+
+}
 
 
 

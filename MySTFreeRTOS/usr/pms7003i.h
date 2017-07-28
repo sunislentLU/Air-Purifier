@@ -3,7 +3,7 @@
 #include "stm32f0xx.h"
 
 
-#define PMS7003I_ADDR  0x12
+#define PMS7003I_ADDR  0x24
 
 typedef enum
 {
