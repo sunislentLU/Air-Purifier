@@ -382,10 +382,29 @@ static void SetLightBrightness(uint16_t brightness)
 ********************************/
 void SetBlueLed(uint8_t op)
 {
+<<<<<<< HEAD
 	if(op == 1)  
 		SetAllLedPowerOn();	
 	else	
 		SetAllLedPowerOff();	
+=======
+	if(op == 1)
+	{  
+		rgbLightValue.FilterCompare = 0x200;			
+		rgbLightValue.RGB_BCompare = 0x0fff;	
+		rgbLightValue.RGB_GCompare = 0xff00;	
+		rgbLightValue.RGB_RCompare = 0xff00;	
+		rgbLightValue.LuminCompare = 10000;// for test
+	}
+	else
+	{
+		rgbLightValue.RGB_BCompare = 0xffff;	
+		rgbLightValue.RGB_GCompare = 0xffff;	
+		rgbLightValue.RGB_RCompare = 0xffff;	
+		rgbLightValue.LuminCompare = 0x0000;// for test	
+		rgbLightValue.FilterCompare = 0xffff;
+	}
+>>>>>>> 280326df1592cec500654321349a987371c4c31a
 }
 
 /****************

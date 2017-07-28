@@ -822,8 +822,28 @@ void AqiCaculation(void)
 	else
 		aqi_tmp = gasJude>dustJude?gasJude:dustJude;
 	if(runningValue.mode == MODE_AUTO)
+<<<<<<< HEAD
 	{				
        p_data = (uint16_t*)&globalParameter.atuoSpdRef;		
+=======
+	{
+		if(runningValue.aqiLevel != aqi_tmp)
+			{
+				p_data = (uint16_t*)&globalParameter.atuoSpdRef;
+				runningValue.aqiLevel = (_eAQI_LEVEL)aqi_tmp;
+				runningValue.speed.targetSpd =*(p_data+aqi_tmp);
+//				mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
+//				mOutputMsg->paramType = MSG_PARAM_USHORT;
+//				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
+//				xQueueSend(outputMsgQueue,mOutputMsg,0);
+				
+				mOutputMsg->outputMsg = OUTPUT_MSG_RGB;
+				mOutputMsg->paramType = MSG_PARAM_USHORT;
+				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
+				xQueueSend(outputMsgQueue,mOutputMsg,0);				
+			}
+			p_data = (uint16_t*)&globalParameter.atuoSpdRef;
+>>>>>>> 280326df1592cec500654321349a987371c4c31a
 			 runningValue.speed.targetSpd =*(p_data+aqi_tmp);
 				if(runningValue.speed.currentSpd != runningValue.speed.targetSpd)
 				{

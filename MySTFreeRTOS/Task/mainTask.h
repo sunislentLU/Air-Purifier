@@ -189,7 +189,11 @@ _sSPEED speed;// running speed
 uint16_t gasValue;// current gas value adc value
 uint16_t lumin;
 uint8_t netStatus;
+<<<<<<< HEAD
 int16_t temperature;
+=======
+int8_t temperature;
+>>>>>>> 280326df1592cec500654321349a987371c4c31a
 int8_t humi;
 }_sRUNNINGVALUE;
 
