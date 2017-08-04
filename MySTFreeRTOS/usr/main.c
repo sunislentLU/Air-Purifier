@@ -68,6 +68,9 @@ vTaskStartScheduler();
 *Date:         20170426
 *Author:       luxq
 **/
+	#ifdef UART_DEBUG
+	extern void DebugUartInit(void);
+	#endif
 static void RuningEvironmentSetting(void)
 {
   InterruptVectorRemap();
@@ -103,5 +106,13 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask,char* pcTaskName)
 {
 while(1);
 }
+
+
+
+
+
+
+
+
 
 

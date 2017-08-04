@@ -32,7 +32,7 @@
 
 
 #define BUZZER_MAX_PERIOD  65536 -1 // 48 000 000 /65536/2 = 366Hz  mini frequency is 366Hz
-#define BUZZER_PERIOD     6000-1       // 48 000 000 / 6000 = 8000/2 = 4000Hz  buzzer output frequency is 4KHz 
+#define BUZZER_PERIOD      6000-1       // 48 000 000 / 6000 = 8000/2 = 4000Hz  buzzer output frequency is 4KHz 
 
 #define LED_RGB_PWM_PERIOD  65536 -1 //led and rgb pwm frequency is 48 000 000 /65536 = 732Hz
 

@@ -1,23 +1,30 @@
 #include "mainTask.h"
 #include "stdio.h"
 #include "string.h"
+#include "main.h"
 /*function declare*/
 void MainVariablesInit(void);
-static void MainSetMode(uint8_t* mode);
-static void MainSetSpeed(uint8_t mode);
+void MainSetMode(uint8_t* mode);
+void MainSetSpeed(uint8_t mode);
 void MainSetTiming(void);
 static void FilterLiveCount(void);
 static void FaultDetection(void);
 static void TimingCount(void);
-static void MainSetBuzzer(uint8_t buzType);
-static void MainSetNetState(void);
+void MainSetBuzzer(uint8_t buzType);
+void MainSetNetState(void);
 static void SecondLoopProcess(void);
 extern void LoopTimerInit(_sLOOPTIMER* timer,uint16_t interval);
-extern uint8_t CheckTickExpired(_sLOOPTIMER* timer);\
+extern uint8_t CheckTickExpired(_sLOOPTIMER* timer);
+extern uint8_t SetPms7003iStandby(uint8_t onoff);
+extern uint8_t CheckTestMode(void);
+extern void TestHandle(uint8_t testMode);
 void ReadGlobalParameter(void);
 void SaveGlobalParameter(void);
 void SystemUpdateMark(uint16_t ver);
 void GasBaseAdj(void);
+void PrintRunningValue(void);
+void AqiCaculation(void);
+void SendOutputMsg(_eOUTPUTMSG_TYPE msg,uint8_t paraType,void* paraPointer);
 /*********************variables****************/
 _sINPUT_MSG* mInputMsg;
 _sWIFI_REC_MSG* mWifiRecMsg;
@@ -33,6 +40,8 @@ static uint8_t dustJude;
 uint8_t warmUp = 0;
 uint16_t gasAdjCnt = 0;
 uint8_t fastTime = 0;
+uint8_t dustDelayCnt = 0;
+uint8_t dustonoff = 0;
 
 float gasRatio = 1.0;
 
@@ -48,7 +57,7 @@ xSemaphoreHandle semWifiVariable;
 const _sRUNNINGVALUE runningValueDefault = {DEFAULT_MODE,DEFAULT_DUSTVALUE,DEFAULT_DUSTSUBVALUE,DEFAULT_AQILEVEL,
 	                                          DEFAULT_TIMING,DEFAULT_LED_STATE,DEFAULT_FILTER_REMAIN,DEFAULT_FAULT,
 	                                          DEFAULT_COVER_STATE,DEFAULT_DUST_SENS,DEFAULT_SPEED,DEFAULT_GASVALUE,
-                                            DEFAULT_LUMIN,DEFAULT_NETSTATE};
+                                            DEFAULT_LUMIN,DEFAULT_NETSTATE,DEFAULT_FILTER_DIS};
 
 const _sSPEED_REFERENCE spdRefDefault = {DEFAULT_STANDBY_SPD_REF,DEFAULT_JET_SPD_REF,DEFAULT_LOW_SPD_REF,\
 	                                     DEFAULT_MEDIUM_SPD_REF,DEFAULT_HIGH_SPD_REF};
@@ -64,6 +73,10 @@ const _sFILTERLIVE filterRef={DEFAULT_RESET_HOUR,DEFAULT_MAX_USE_HOUR};
 _sDATE filterCnt;
 uint16_t timingCnt = 0;
 uint8_t conTimeOut = 0;
+uint8_t filterClrCnt = 0;
+uint8_t ledOnCnt = 0;
+
+
 _sLOOPTIMER* secondLoop;
 _sLOOPTIMER* mFilterCnt;
 /******************************************/
@@ -84,7 +97,6 @@ extern uint8_t CheckTestMode(void);
 void MainTask(void* arg)
 {
   uint8_t* dataPointer;
-//	uint16_t* u16Pointer;
   uint16_t dataTemp; 
   MainVariablesInit();
   ReadGlobalParameter();
@@ -94,128 +106,7 @@ void MainTask(void* arg)
 	{
 		if(isTestMode != 0)//test Mode
 		{	
-      if(entryTestMode == 0)
-			{
-				entryTestMode = 1;
-				MainSetBuzzer(OUTPUT_MSG_BUZZ_CONF);
-				
-				while(CheckTestMode())
-				{						
-				vTaskDelay(100);
-				}
-				while(xQueueReceive(inputMsgQueue,mInputMsg,10))
-					;				
-				if(isTestMode == TEST_MODE_VER)
-				{
-				
-				}else if(isTestMode == TEST_MODE_SPD)
-				{
-					subTestMode +=TEST_LED_SPDLOW;
-					MainSetMode(&subTestMode);
-					MainSetSpeed((subTestMode-TEST_LED_SPDLOW +1));				
-				}else 
-				{
-				isTestMode = TEST_MODE_NONE;
-					break;
-				}
-			
-			}				
-			if(xQueueReceive(inputMsgQueue,mInputMsg,10) == pdTRUE)
-				{
-					switch(mInputMsg->inputMsg)						
-					{           			
-						case KEY_POWER_PRESS:
-							isTestMode = TEST_MODE_NONE;
-              MainVariablesInit();	             						
-						  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);	
-						break;			
-						case KEY_MODE_PRESS:
-							if(isTestMode == TEST_MODE_SPD)
-							{
-							subTestMode++;															
-								if(subTestMode > TEST_LED_SPDFAST)
-									subTestMode = TEST_LED_SPDLOW;
-								switch(subTestMode)
-								{
-									case TEST_LED_SPDLOW:
-										runningValue.speed.targetSpd = globalParameter.speedRef.lowSpdRef;
-										break;
-									case TEST_LED_SPDMED:
-										runningValue.speed.targetSpd = globalParameter.speedRef.mediumSpdRef;
-										break;
-								  case TEST_LED_SPDHIGH:
-										runningValue.speed.targetSpd = globalParameter.speedRef.highSpdRef;
-										break;
-									case TEST_LED_SPDALOW:
-										runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoMedSpdRef;
-										break;
-									case TEST_LED_SPDAMED:
-										runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoMedSpdRef;
-										break;
-								  case TEST_LED_SPDAHIGH:
-										runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoHighSpdRef;
-										break;
-									case TEST_LED_SPDFAST:
-										runningValue.speed.targetSpd = globalParameter.speedRef.jetSpdRef;
-										break;
-									default:
-								break;
-								}
-																
-								mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
-								mOutputMsg->paramType = MSG_PARAM_USHORT;
-								mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-								xQueueSend(outputMsgQueue,mOutputMsg,0);
-
-							MainSetMode(&subTestMode);
-							
-							MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);		
-							}else
-							{
-
-							}
-						break;
-								
-						case KEY_VOLUME_PRESS:
-							if(isTestMode == TEST_MODE_SPD)
-							{
-								runningValue.speed.targetSpd += 10;
-								if(runningValue.speed.targetSpd>=2400)
-									runningValue.speed.targetSpd = 2400;
-								//MainSetSpeed((subTestMode-TEST_LED_SPDLOW));
-								mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
-								mOutputMsg->paramType = MSG_PARAM_USHORT;
-								mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-								xQueueSend(outputMsgQueue,mOutputMsg,0);
-								MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
-							}else
-							{
-
-							}
-				
-						break;
-						case KEY_TIMING_PRESS:
-							if(isTestMode == TEST_MODE_SPD)
-							{
-								runningValue.speed.targetSpd -= 10;
-								if(runningValue.speed.targetSpd<=200)
-									runningValue.speed.targetSpd = 200;
-								//MainSetSpeed((subTestMode-TEST_LED_SPDLOW));
-								mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
-								mOutputMsg->paramType = MSG_PARAM_USHORT;
-								mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-								xQueueSend(outputMsgQueue,mOutputMsg,0);
-								MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
-
-							}else
-							{
-
-							}
-							break;			
-						default:				
-						break;				
-					}			
-				}			
+			TestHandle(isTestMode);     
 		}else// normal  mode 
 		{
 	
@@ -227,17 +118,32 @@ void MainTask(void* arg)
 				if(runningValue.mode == MODE_STANDBY)
 				{
 					runningValue.mode = MODE_AUTO;
+					runningValue.blueLed = BLUE_LED_ON;
 					MainSetTiming();
-					runningValue.lumin = 0;
 					mOutputMsg->outputMsg = OUTPUT_MSG_LIGHT;
 					mOutputMsg->outputMsgParam = &runningValue.lumin;
 					xQueueSend(outputMsgQueue, mOutputMsg, 0);
+					if(runningValue.blueLed == BLUE_LED_OFF)
+					{
+						runningValue.blueLed = BLUE_LED_ON;
+						ledOnCnt = LEDON_DURATION;
+						//mOutputMsg->outputMsgParam = &runningValue.blueLed;
+					    //mOutputMsg->paramType = MSG_PARAM_UCHAR;
+					    //xQueueSend(outputMsgQueue,mOutputMsg,1);
+						SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+					}
 				}
 				else
 				{
 					runningValue.mode = MODE_STANDBY;
 					if(timingCnt !=0)
 						timingCnt = 0;
+					if(filterClrCnt != 0)
+					{
+						filterClrCnt = 0;
+
+					}
+						
 					if(runningValue.timingLevel != TIMING_LEVEL_NONE)
 					{
 						runningValue.timingLevel = TIMING_LEVEL_NONE;
@@ -246,7 +152,6 @@ void MainTask(void* arg)
 				MainSetMode((uint8_t*)&runningValue.mode);
 				MainSetSpeed(runningValue.mode);
 				MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
-
 				break;
 
 			case KEY_POWER_LPRESS:
@@ -266,6 +171,12 @@ void MainTask(void* arg)
 					MainSetMode((uint8_t*)&runningValue.mode);				
 					MainSetSpeed(runningValue.mode);				
 					MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+					if(runningValue.blueLed == BLUE_LED_OFF)
+					{
+						runningValue.blueLed = BLUE_LED_ON;
+						ledOnCnt = LEDON_DURATION;
+				        SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+					}
 					
 				}
 				break;
@@ -278,12 +189,17 @@ void MainTask(void* arg)
 			  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
 			  runningValue.netStatus = 3;
 			  MainSetNetState();
-			  conTimeOut = 30;				
+			  conTimeOut = 60;
+			  if(runningValue.blueLed == BLUE_LED_OFF)
+			  {
+			  	runningValue.blueLed = BLUE_LED_ON;
+                SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+			  	ledOnCnt = 60;
+			  }
 				}
 				break;
 							
 			case KEY_VOLUME_PRESS:
-				//p_uint16 = (uint16_t*)&spdRef;
 				if(runningValue.mode != MODE_STANDBY)// in standby mode no action
 				{
 				if((runningValue.mode >=MODE_LOW)&&(runningValue.mode <= MODE_HIGH))
@@ -304,21 +220,48 @@ void MainTask(void* arg)
 						MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
 					}
 				}
+				if(runningValue.blueLed == BLUE_LED_OFF)
+				{
+					runningValue.blueLed = BLUE_LED_ON;
+					SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+					ledOnCnt = LEDON_DURATION;
+				}
 				}
 				break;
 			case KEY_VOLUME_LPRESS:
 			case KEY_VOLUME_HOLD://	
+//				if(dustonoff == 1)
+//					dustonoff = 0;
+//				else
+//					dustonoff = 1;
+//				SetPms7003iStandby(dustonoff);
+         if(runningValue.mode != MODE_STANDBY)
+         {
+		 	runningValue.blueLed ^=1;
+			SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+			xQueueSend(outputMsgQueue,mOutputMsg,1);		
+            MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);	
+         }
 			break;
 			
 			case KEY_TIMING_PRESS:
 				if(runningValue.mode != MODE_STANDBY)// in standby mode no action
-				{				
+				{	
+					if(runningValue.filterDis == FILTER_STATE_CLEAR)
+				    {
+						runningValue.filterDis = FILTER_STATE_USEABLE;
+						runningValue.filterState = DEFAULT_FILTER_REMAIN;
+						mOutputMsg->outputMsg = OUTPUT_MSG_FDIS_NRL;
+						xQueueSend(outputMsgQueue,mOutputMsg,1);
+
+				    }
+				else{
 					runningValue.timingLevel++;
 				  if(runningValue.timingLevel>TIMING_8_HOUR)
 						runningValue.timingLevel = TIMING_LEVEL_NONE;
 				    timingCnt  = timingTable[runningValue.timingLevel];
 					MainSetTiming();
-					MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+					
 					#if RGB_TEST
 					runningValue.aqiLevel++;
 					if(runningValue.aqiLevel>AQI_LEVEL_BAD)
@@ -329,14 +272,34 @@ void MainTask(void* arg)
 					xQueueSend(outputMsgQueue,mOutputMsg,0);
 					#endif
 				}
+				if(runningValue.blueLed == BLUE_LED_OFF)
+				{
+					runningValue.blueLed = BLUE_LED_ON;
+					ledOnCnt = LEDON_DURATION;
+					SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+				}
+				
+				  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+				}
 				break;
 
 			case KEY_TIMING_LPRESS:
 			case KEY_TIMING_HOLD:
+				if(runningValue.mode!=MODE_STANDBY)
+				{
+					if((runningValue.filterDis == FILTER_STATE_USEABLE)||(runningValue.filterDis == FILTER_STATE_USEABLE))
+					{
+						runningValue.filterDis = FILTER_STATE_CLEAR;
+						filterClrCnt = 5;
+						mOutputMsg->outputMsg = OUTPUT_MSG_FDIS_CLR;
+						xQueueSend(outputMsgQueue,mOutputMsg,1);
+						MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+					}
+				}
 				
 				break;
 			case INPUT_MSG_DUST:
-				if(mInputMsg->paramType == MSG_PARAM_SHORT)
+				if((mInputMsg->paramType == MSG_PARAM_SHORT)&&(dustDelayCnt>=10))
 				{
 					dataTemp = *((uint16_t*)mInputMsg->inputMsgParam);
 					if(((dataTemp>runningValue.dustDensity)&&(dataTemp - runningValue.dustDensity>=DUST_UP_THRD))||
@@ -349,16 +312,19 @@ void MainTask(void* arg)
 					runningValue.dustDensity = dataTemp;
 				}
 				break;
-			case INPUT_MSG_DUST_SUB:
+			case INPUT_MSG_DUST_SUB:// 1s period 
 				dataTemp = *((uint16_t*)mInputMsg->inputMsgParam);
-				if(mInputMsg->paramType == MSG_PARAM_SHORT)
+				if((mInputMsg->paramType == MSG_PARAM_SHORT)&&(dustDelayCnt>=10))
 				{
-					if(((dataTemp>runningValue.dustDensitySub)&&(dataTemp - runningValue.dustDensitySub>=DUST_UP_THRD))||
-						((dataTemp<runningValue.dustDensitySub)&&(runningValue.dustDensitySub-dataTemp>=DUST_UP_THRD)))
+					if(((dataTemp>runningValue.dustDensitySub)&&((dataTemp - runningValue.dustDensitySub)>=DUST_UP_THRD))||
+						((dataTemp<runningValue.dustDensitySub)&&((runningValue.dustDensitySub-dataTemp)>=DUST_UP_THRD)))
 					{
 						runningValue.dustDensitySub= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 						mWifiSndMsg->propMsg = WIFI_UP_DUST_SUB;
-						xQueueSend(wifiSndQueue,mWifiSndMsg,0);
+						xQueueSend(wifiSndQueue,mWifiSndMsg,0);											
+						if(dataTemp>runningValue.dustDensitySub)//?????那芍????米那㊣?赤谷??D??AQI ?????那芍?o?℅a那㊣????10???D??辰?∩?
+							AqiCaculation();
+						
 					}
 					runningValue.dustDensitySub= dataTemp;
 				}
@@ -380,12 +346,15 @@ void MainTask(void* arg)
 					else
 						gasRatio = 1.0;
 					
-					if(((dataTemp>runningValue.gasValue)&&(dataTemp - runningValue.gasValue>=GAS_UP_THRD))||
-						((dataTemp<runningValue.gasValue)&&(runningValue.gasValue-dataTemp>=GAS_UP_THRD)))
+					if(((dataTemp>runningValue.gasValue)&&((dataTemp - runningValue.gasValue)>=GAS_UP_THRD))||
+						((dataTemp<runningValue.gasValue)&&((runningValue.gasValue-dataTemp)>=GAS_UP_THRD)))
 					{
+
 						runningValue.gasValue= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 						mWifiSndMsg->propMsg = WIFI_UP_GAS;
-						xQueueSend(wifiSndQueue,mWifiSndMsg,0);
+						xQueueSend(wifiSndQueue,mWifiSndMsg,0);								
+						if(dataTemp<runningValue.gasValue)
+							AqiCaculation();
 					}
 					runningValue.gasValue= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 					
@@ -397,11 +366,12 @@ void MainTask(void* arg)
 					dataTemp = *((uint16_t*)mInputMsg->inputMsgParam);				
 					dataTemp = (dataTemp*3300)/4095;						
 					runningValue.lumin= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
-					if(runningValue.mode!=MODE_STANDBY)
+					if((runningValue.mode!=MODE_STANDBY)&&(runningValue.blueLed == BLUE_LED_ON))
 					{
-					mOutputMsg->outputMsg = OUTPUT_MSG_LIGHT;
-					mOutputMsg->outputMsgParam = &runningValue.lumin;
-					xQueueSend(outputMsgQueue, mOutputMsg, 0);
+//					mOutputMsg->outputMsg = OUTPUT_MSG_LIGHT;
+//					mOutputMsg->outputMsgParam = &runningValue.lumin;
+//					xQueueSend(outputMsgQueue, mOutputMsg, 0);
+					SendOutputMsg(OUTPUT_MSG_LIGHT,MSG_PARAM_USHORT,&runningValue.lumin);
 					}
 				}
 				break;
@@ -425,14 +395,24 @@ void MainTask(void* arg)
 				}
 				break;
 			case INPUT_MSG_TEMP:
-				dataTemp = *((int8_t*)mInputMsg->inputMsgParam);	
-			  runningValue.temperature = dataTemp;
-			  
+				dataTemp = *((int8_t*)mInputMsg->inputMsgParam);
+				if(((dataTemp > runningValue.temperature)&&(dataTemp - runningValue.temperature >= TEMP_UP_THD))||
+					((dataTemp < runningValue.temperature)&&(runningValue.temperature - dataTemp >= TEMP_UP_THD)))
+				{
+					mWifiSndMsg->propMsg = WIFI_UP_TEMP;
+					xQueueSend(wifiSndQueue,mWifiSndMsg,0);				
+				}
+				runningValue.temperature = dataTemp;
 				break;
 			case INPUT_MSG_HUMI:
 				dataTemp = *((int8_t*)mInputMsg->inputMsgParam);	
-			  runningValue.humi = dataTemp;
-			  
+				if(((dataTemp > runningValue.humi)&&(dataTemp - runningValue.humi >= HUMI_UP_THD))||
+					((dataTemp < runningValue.humi)&&(runningValue.humi - dataTemp >= HUMI_UP_THD)))
+				{
+					mWifiSndMsg->propMsg = WIFI_UP_HUMI;
+					xQueueSend(wifiSndQueue,mWifiSndMsg,0);				
+				}
+				runningValue.humi = dataTemp;
 				break;
 		default:
 			break;
@@ -448,10 +428,23 @@ void MainTask(void* arg)
 						break;
 					if(*dataPointer != runningValue.mode)
 					{
+						if(*dataPointer == MODE_JET)
+							fastTime = FAST_MODE_TIME;
 						runningValue.mode = (_eMODE)*dataPointer;
 						MainSetMode((uint8_t*)&runningValue.mode);
 						MainSetSpeed(runningValue.mode);
 						MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+						if(runningValue.mode != MODE_STANDBY)
+						{
+							if(runningValue.blueLed == BLUE_LED_OFF)
+							{						       
+								ledOnCnt = LEDON_DURATION;															   
+								runningValue.blueLed = BLUE_LED_ON;
+								SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_UCHAR,&runningValue.blueLed);
+								
+							}
+
+						}
 					}
 					break;			   
 					case WIFI_MSG_LED:
@@ -460,10 +453,7 @@ void MainTask(void* arg)
 			 	    runningValue.blueLed = BLUE_LED_ON;
 					else 
 						runningValue.blueLed = BLUE_LED_OFF;					
-						mOutputMsg->outputMsgParam = &runningValue.blueLed;
-						mOutputMsg->outputMsg = OUTPUT_MSG_BLUELED;
-						mOutputMsg->paramType = MSG_PARAM_UCHAR;
-						xQueueSend(outputMsgQueue,mOutputMsg,1);
+					SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
 					break;
 				 case WIFI_MSG_DUST:
 			 	
@@ -480,16 +470,28 @@ void MainTask(void* arg)
 					break;
 
 					case WIFI_MSG_TIMING:
-	
+						dataPointer = (uint8_t*)mWifiRecMsg->wifiMsgParam;	
+						if(*dataPointer <= 3 )	
+						{	
+							if(runningValue.timingLevel != (_eTIMING_LEVEL)*dataPointer)
+							{
+							runningValue.timingLevel = (_eTIMING_LEVEL)*dataPointer;	
+							timingCnt  = timingTable[runningValue.timingLevel];							
+							MainSetTiming();
+							MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+							if(runningValue.blueLed == BLUE_LED_OFF)
+							{
+						       ledOnCnt = LEDON_DURATION;
+							   runningValue.blueLed = BLUE_LED_ON;
+							   SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+							}
+							}
+						}	
 					break;
-
 					case WIFI_MSG_FILTER:
 	
 					break;
 
-					case WIFI_MSG_VER:
-	
-					break;
 					case WIFI_MSG_SPEED:
 	
 					break;
@@ -515,6 +517,8 @@ void MainTask(void* arg)
 						dataTemp |=*dataPointer;
 						globalParameter.dustSen = dataTemp;
 						SaveGlobalParameter();
+						vTaskDelay(10);
+						NVIC_SystemReset();
 					break;
 					case WIFI_TVOC_REF:
 	
@@ -551,7 +555,6 @@ void MainTask(void* arg)
 *********  filter live count  timing count 
 *********  and fan fault detection       ***/
 	 SecondLoopProcess();
-	 FaultDetection();
 	 FilterLiveCount();
 
 	}
@@ -596,7 +599,7 @@ void MainVariablesInit(void)
 * Date:               20170502
 *author:              CTK  luxq
 ***************/
-static void MainSetMode(uint8_t* mode)
+ void MainSetMode(uint8_t* mode)
 {
 	mOutputMsg->outputMsg = OUTPUT_MSG_MODE;
 	mOutputMsg->paramType = MSG_PARAM_UCHAR;
@@ -616,18 +619,20 @@ static void MainSetMode(uint8_t* mode)
 *author:              CTK  luxq
 ***************/
 
-static void MainSetBuzzer(uint8_t buzType)
+ void MainSetBuzzer(uint8_t buzType)
 {
-	mOutputMsg->outputMsg = (_eOUTPUTMSG_TYPE)buzType;
-	mOutputMsg->paramType = MSG_PARAM_NONE;
-	xQueueSend(outputMsgQueue,mOutputMsg,0);
+	//mOutputMsg->outputMsg = (_eOUTPUTMSG_TYPE)buzType;
+	//mOutputMsg->paramType = MSG_PARAM_NONE;
+	//xQueueSend(outputMsgQueue,mOutputMsg,0);
+	SendOutputMsg((_eOUTPUTMSG_TYPE)buzType,MSG_PARAM_NONE, NULL);
 }
-static void MainSetNetState(void)
+ void MainSetNetState(void)
 {
-	mOutputMsg->outputMsg = OUTPUT_MSG_NET;
-	mOutputMsg->paramType = MSG_PARAM_UCHAR;
-	mOutputMsg->outputMsgParam = (uint8_t*)(&runningValue.netStatus);
-	xQueueSend(outputMsgQueue,mOutputMsg,0);
+	//mOutputMsg->outputMsg = OUTPUT_MSG_NET;
+	//mOutputMsg->paramType = MSG_PARAM_UCHAR;
+	//mOutputMsg->outputMsgParam = (uint8_t*)(&runningValue.netStatus);
+	//xQueueSend(outputMsgQueue,mOutputMsg,0);
+	SendOutputMsg(OUTPUT_MSG_NET,MSG_PARAM_UCHAR, (uint8_t*)(&runningValue.netStatus));
 }
 
 /****************
@@ -639,7 +644,7 @@ static void MainSetNetState(void)
 * Date:               20170502
 *author:              CTK  luxq
 ***************/
-static void MainSetSpeed(uint8_t mode)
+ void MainSetSpeed(uint8_t mode)
 {
 	switch(mode)
 	{
@@ -664,10 +669,11 @@ static void MainSetSpeed(uint8_t mode)
 		default:
 		break;
 	}
-	mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
-	mOutputMsg->paramType = MSG_PARAM_USHORT;
-	mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-	xQueueSend(outputMsgQueue,mOutputMsg,0);
+	//mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
+	//mOutputMsg->paramType = MSG_PARAM_USHORT;
+	//mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
+	//xQueueSend(outputMsgQueue,mOutputMsg,0);
+	SendOutputMsg(OUTPUT_MSG_SPEED,MSG_PARAM_USHORT,&runningValue.speed.targetSpd);
 }
 
 void MainSetTiming(void)
@@ -677,6 +683,8 @@ void MainSetTiming(void)
 	mOutputMsg->paramType = MSG_PARAM_UCHAR;
 	mOutputMsg->outputMsgParam = &runningValue.timingLevel;
 	xQueueSend(outputMsgQueue,mOutputMsg,0);
+	mWifiSndMsg->propMsg = WIFI_UP_TIMING;
+	xQueueSend(wifiSndQueue,mWifiSndMsg,1);
 }
 
 /****************
@@ -692,6 +700,7 @@ static void FilterLiveCount(void)
 {
     if(CheckTickExpired(mFilterCnt))
 		{
+			
 			filterCnt.min++;
 			if(filterCnt.min%10 == 0)
 			{
@@ -709,7 +718,9 @@ static void FilterLiveCount(void)
 			    SaveGlobalParameter();
 				if(globalParameter.filterVar.filterHoursCnt>= globalParameter.filterVar.maxFilterHours)
 				{
-				  runningValue.filterState = FILTER_STATE_CHANGED;
+					runningValue.filterState = FILTER_STATE_CHANGED;
+					mOutputMsg->outputMsg = OUTPUT_MSG_FDIS_WRN;
+					xQueueSend(outputMsgQueue,mOutputMsg,1);
 				}
 	    }				
 			if(fastTime >0)
@@ -725,8 +736,17 @@ static void FilterLiveCount(void)
 					mInputMsg->inputMsg = KEY_MODE_PRESS;			
 					xQueueSend(inputMsgQueue, mInputMsg, 0);		
 				}		
-
 	}
+			if(filterClrCnt >0)
+			{
+				filterClrCnt --;
+				if(filterClrCnt == 0)
+				{
+					mOutputMsg->outputMsg = OUTPUT_MSG_FDIS_NRL;
+					xQueueSend(outputMsgQueue, mOutputMsg, 0);
+				}
+			}
+
 		}
 }
 
@@ -742,13 +762,22 @@ static void FilterLiveCount(void)
 static void FaultDetection(void)
 {
      if(runningValue.mode!= MODE_STANDBY)
-			 if(runningValue.speed.currentSpd <= 200)
-			 {
-				 runningValue.fault = 0x01;
-//				 mInputMsg->inputMsg = KEY_POWER_PRESS;
-//				 mInputMsg->paramType = MSG_PARAM_NONE;
-//			 	xQueueSend(inputMsgQueue,mInputMsg,0);
-			 }
+     {
+	 	if(runningValue.speed.currentSpd != runningValue.speed.targetSpd)
+	 	{
+			if(((runningValue.speed.currentSpd>runningValue.speed.targetSpd)&&((runningValue.speed.currentSpd - runningValue.speed.targetSpd)>=MOTOR_FAULT_DEATA))||
+				((runningValue.speed.currentSpd<runningValue.speed.targetSpd)&&((runningValue.speed.targetSpd - runningValue.speed.currentSpd)>=MOTOR_FAULT_DEATA)))
+			{
+				runningValue.fault = 0x01;
+//				mInputMsg->inputMsg = KEY_POWER_PRESS;			
+//				xQueueSend(inputMsgQueue, mInputMsg, 0);	
+				
+			}
+
+
+		}
+
+	 }
 }
 
 
@@ -795,6 +824,8 @@ void GasBaseAdj(void)
 		}else
 		gasAdjCnt = 0;		
 	}
+	if(dustDelayCnt <15)
+		dustDelayCnt++;
 }
 
 
@@ -803,11 +834,11 @@ void AqiCaculation(void)
 	uint16_t* p_data; 
 	uint16_t gRatio;
 	gRatio = gasRatio*100;
-	if(runningValue.dustDensity <=(globalParameter.dustRef.dustGoodRef -10))
+	if(runningValue.dustDensitySub<=(globalParameter.dustRef.dustGoodRef -10))
 		dustJude = AQI_LEVEL_GOOD;
-  else if((runningValue.dustDensity>(globalParameter.dustRef.dustGoodRef + 10))&&(runningValue.dustDensity<=(globalParameter.dustRef.dustFineRef - 10)))
+  else if((runningValue.dustDensitySub>(globalParameter.dustRef.dustGoodRef + 10))&&(runningValue.dustDensitySub<=(globalParameter.dustRef.dustFineRef - 10)))
 		dustJude = AQI_LEVEL_FINE;
-	else if((runningValue.dustDensity>(globalParameter.dustRef.dustFineRef + 10)))
+	else if((runningValue.dustDensitySub>(globalParameter.dustRef.dustFineRef + 10)))
 		dustJude = AQI_LEVEL_BAD;
 		
 	if(gRatio >=globalParameter.gasRef.gasGoodRef)
@@ -821,47 +852,39 @@ void AqiCaculation(void)
 		aqi_tmp = AQI_LEVEL_GOOD;
 	else
 		aqi_tmp = gasJude>dustJude?gasJude:dustJude;
+	if(aqi_tmp != runningValue.aqiLevel)
+	{
+		mWifiSndMsg->propMsg = WIFI_UP_AQI;
+		xQueueSend(wifiSndQueue, mWifiSndMsg, 0);
+		mWifiSndMsg->propMsg = WIFI_UP_DUST;
+		xQueueSend(wifiSndQueue, mWifiSndMsg, 0);
+		mWifiSndMsg->propMsg = WIFI_UP_DUST_SUB;
+		xQueueSend(wifiSndQueue, mWifiSndMsg, 0);
+	}
 	if(runningValue.mode == MODE_AUTO)
-<<<<<<< HEAD
 	{				
        p_data = (uint16_t*)&globalParameter.atuoSpdRef;		
-=======
-	{
-		if(runningValue.aqiLevel != aqi_tmp)
-			{
-				p_data = (uint16_t*)&globalParameter.atuoSpdRef;
-				runningValue.aqiLevel = (_eAQI_LEVEL)aqi_tmp;
-				runningValue.speed.targetSpd =*(p_data+aqi_tmp);
-//				mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
-//				mOutputMsg->paramType = MSG_PARAM_USHORT;
-//				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-//				xQueueSend(outputMsgQueue,mOutputMsg,0);
-				
-				mOutputMsg->outputMsg = OUTPUT_MSG_RGB;
-				mOutputMsg->paramType = MSG_PARAM_USHORT;
-				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-				xQueueSend(outputMsgQueue,mOutputMsg,0);				
-			}
-			p_data = (uint16_t*)&globalParameter.atuoSpdRef;
->>>>>>> 280326df1592cec500654321349a987371c4c31a
 			 runningValue.speed.targetSpd =*(p_data+aqi_tmp);
 				if(runningValue.speed.currentSpd != runningValue.speed.targetSpd)
 				{
 				mOutputMsg->outputMsg = OUTPUT_MSG_SPEED;
 				mOutputMsg->paramType = MSG_PARAM_USHORT;
 				mOutputMsg->outputMsgParam = &runningValue.speed.targetSpd;
-				xQueueSend(outputMsgQueue,mOutputMsg,0);	
+				xQueueSend(outputMsgQueue,mOutputMsg,0);
 				}					
 	}
 		if(runningValue.mode !=MODE_STANDBY)
 			{
 				if(aqi_tmp != runningValue.aqiLevel)
 				runningValue.aqiLevel = (_eAQI_LEVEL)aqi_tmp;
-				runningValue.speed.targetSpd =*(p_data+aqi_tmp);
-				mOutputMsg->outputMsg = OUTPUT_MSG_RGB;
-				mOutputMsg->paramType = MSG_PARAM_UCHAR;
-				mOutputMsg->outputMsgParam = &runningValue.aqiLevel;
-				xQueueSend(outputMsgQueue,mOutputMsg,0);				
+				if(runningValue.blueLed == BLUE_LED_ON)
+				{
+					mOutputMsg->outputMsg = OUTPUT_MSG_RGB;
+					mOutputMsg->paramType = MSG_PARAM_UCHAR;
+					mOutputMsg->outputMsgParam = &runningValue.aqiLevel;
+					xQueueSend(outputMsgQueue,mOutputMsg,0);
+				}
+				
 			}
 			//runningValue.aqiLevel = (_eAQI_LEVEL)aqi_tmp;
 	
@@ -869,14 +892,22 @@ void AqiCaculation(void)
 
 static void SecondLoopProcess(void)
 {
+	static uint8_t faultCnt = 0;
 	if(CheckTickExpired(secondLoop))
 	{
-	FaultDetection();
+//	FaultDetection();
 	TimingCount();
-	#ifndef RGB_TEST
-	AqiCaculation();
-	#endif
 	GasBaseAdj();
+	faultCnt++;
+	if(faultCnt>=10)
+	{
+		faultCnt = 0;
+		FaultDetection();			
+		#ifndef RGB_TEST	
+		AqiCaculation();
+		#endif
+		PrintRunningValue();
+	}
 	}
 }
 /****************
@@ -895,14 +926,16 @@ static void TimingCount(void)
   timingCnt--;
   if(timingCnt == 0)
   {
-  	 if(runningValue.mode != MODE_STANDBY)
-  	 {
-		 runningValue.mode = MODE_STANDBY;
-		 MainSetMode((uint8_t*)&runningValue.mode);
-		 MainSetSpeed(runningValue.mode);
-		 MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
-		 runningValue.timingLevel = TIMING_LEVEL_NONE;
-	 }
+//  	 if(runningValue.mode != MODE_STANDBY)
+//  	 {
+//		 runningValue.mode = MODE_STANDBY;
+//		 MainSetMode((uint8_t*)&runningValue.mode);
+//		 MainSetSpeed(runningValue.mode);
+//		 MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+//		 runningValue.timingLevel = TIMING_LEVEL_NONE;
+//	 }
+		mInputMsg->inputMsg = KEY_POWER_PRESS;
+		xQueueSend(inputMsgQueue,mInputMsg,0);
   }
 	}
 	if(conTimeOut>0)
@@ -910,11 +943,26 @@ static void TimingCount(void)
 		conTimeOut--;
 		if(conTimeOut == 0)
 		{
-		//	mWifiSndMsg->propMsg = WIFI_REBOOT;
-		//	xQueueSend(wifiSndQueue, mWifiSndMsg, 0);
-			
+			if(runningValue.netStatus < 1)
+			{
+			   mWifiSndMsg->propMsg = WIFI_REBOOT;
+			   xQueueSend(wifiSndQueue, mWifiSndMsg, 0);
+			   runningValue.netStatus = 0;
+			}						
 		}
 	}
+	if(ledOnCnt!=0)			
+	{			
+		ledOnCnt--;				
+		if(ledOnCnt == 0)				
+		{
+			runningValue.blueLed = BLUE_LED_OFF;	
+    mOutputMsg->outputMsgParam = &runningValue.blueLed;			
+   	mOutputMsg->outputMsg = OUTPUT_MSG_BLUELED;
+		mOutputMsg->paramType = MSG_PARAM_UCHAR;
+		xQueueSend(outputMsgQueue,mOutputMsg,1);
+		}
+		}
 }
 
 
@@ -1059,7 +1107,6 @@ void GetFlashSoftVer(uint32_t addr)
     memcpy(&globalParameter.softVersion,(uint32_t*)(address),length);
 	if(globalParameter.softVersion != DEFALUT_SOFTVER)
 		globalParameter.softVersion= DEFALUT_SOFTVER;
-
 }
 
 void ReadGlobalParameter(void)
@@ -1094,11 +1141,32 @@ void SystemUpdateMark(uint16_t ver)
 
 
 
-void SendOutputMsg(uint8_t msg,uint8_t parmType,void* pama)
+void SendOutputMsg(_eOUTPUTMSG_TYPE msg,uint8_t paraType,void* paraPointer)
 {
-
-
+	mOutputMsg->outputMsg = msg;
+	mOutputMsg->paramType = (_eMSG_PARAM_TYPE)paraType;
+	mOutputMsg->outputMsgParam = paraPointer;
+	xQueueSend(outputMsgQueue,mOutputMsg,1);
 }
+
+
+void PrintRunningValue(void)
+{
+	DEBUG("mode: %d\r",runningValue.mode);
+	DEBUG("pm2.5: %dug/m3\r",runningValue.dustDensity);
+	DEBUG("pm10: %dug/m3\r",runningValue.dustDensitySub);
+	DEBUG("aqi: %d\r",runningValue.aqiLevel);
+	DEBUG("gas: %dR\r",runningValue.gasValue);
+	DEBUG("gasbase: %dR\r",globalParameter.gasBase);
+	DEBUG("temp: %d'C\r",runningValue.temperature);
+	DEBUG("humi: %d\r",runningValue.humi);
+	DEBUG("timing: %d\r",runningValue.timingLevel);
+	DEBUG("target speed : %d rpm\r",runningValue.speed.targetSpd);
+	DEBUG("current speed : %d rpm\r",runningValue.speed.currentSpd);
+	DEBUG("lumin : %dmV\r",runningValue.lumin);
+	DEBUG("net : %d\r",runningValue.netStatus);
+}
+
 
 uint8_t* GetModeState(void)
 {
@@ -1196,7 +1264,7 @@ uint8_t* GetLuminRef(void)
 }
 uint8_t* GetDustSen(void)
 {
- return (uint8_t*)(&runningValue.sense);
+ return (uint8_t*)(&globalParameter.dustSen);
 }
 uint8_t* GetTVOCRef(void)
 {

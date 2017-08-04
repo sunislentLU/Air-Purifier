@@ -2,6 +2,7 @@
 #include "bspOutput.h"
 #include "stdio.h"
 #include "string.h"
+#include "mainTask.h"
 /******Functions Declare **********/
 extern void SetLed1On(void);
 extern void SetLed1Off(void);
@@ -40,14 +41,14 @@ _sOUTPUT_VAR outputVariable;
 _sLOOPTIMER* buzLedTimer;
 extern _sRGBLIGHT rgbLightValue;
 
-const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x1f,0x3f,0xff,0xff,0xff},
-	                             {0x8f,0xff,0x2f,0xff,0xff},{0xef,0x3f,0x00,0xff,0xff}};
-const _sRGBLIGHT rgbValueRefDark[4]={{0x00,0x00,0x00,0x00,0x00},{0x02,0x04,0x10,0x10,0x10},
-	                             {0x09,0x10,0x03,0x10,0x10},{0x0f,0x04,0x00,0x10,0x10}};
+const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x3f,0xff,0xff,0xff},
+	                             {0xff,0xff,0x00,0xff,0xff},{0xef,0x3f,0x00,0xff,0xff}};
+const _sRGBLIGHT rgbValueRefDark[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x04,0x10,0x10,0x10},
+	                             {0x10,0x10,0x00,0x10,0x10},{0x0f,0x04,0x00,0x10,0x10}};
 
 const uint32_t RGBLightRegister[5]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40),(TIM15_BASE + 0x38)};
-const uint16_t RGBFadeStep[3][5] = {{0x1ff,0x3ff,0xfff,0xfff,0xfff},
-                                    {0x8ff,0xfff,0x2ff,0xfff,0xfff},
+const uint16_t RGBFadeStep[3][5] = {{0xfff,0x3ff,0xfff,0xfff,0xfff},
+                                    {0xfff,0xfff,0xfff,0xfff,0xfff},
                                     {0xeff,0x3ff,0xfff,0xfff,0xfff}};
 /****************
 * Function Name:      DeviceOutputTask
@@ -89,28 +90,23 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 		   	break;           
 			 case OUTPUT_MSG_LIGHT:
 			 	dataTmp = *((uint16_t*)outputMsg->outputMsgParam);
-				if(dataTmp >=5)
+				if(dataTmp >=DEFAULT_LUMIN_LIGHT)
 				{
 					SetLightBrightness(rgbValueRef[1].LuminCompare);
 					rgbLightValue.FilterCompare = rgbValueRef[1].FilterCompare;
 					outputVariable.light = LIGHT_BRIGHT;
+				memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));				
 				}
-				else if(dataTmp == 0)
+				else if(dataTmp <= DEFAULT_LUMIN_DARK)
 				{
 				outputVariable.light = LIGHT_DARK;
 				SetLightBrightness(rgbValueRefDark[1].LuminCompare);
 				rgbLightValue.FilterCompare = rgbValueRefDark[1].FilterCompare;
+				memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
 				}
 		   	break;
 		   case OUTPUT_MSG_BLUELED:
-		   	if(outputMsg->paramType == MSG_PARAM_UCHAR)
-		   	{
 				SetBlueLed(*((uint8_t*)outputMsg->outputMsgParam));
-
-			}else
-			{
-              ;
-			}
 		   	break;
 		   case OUTPUT_MSG_BUZZ_KEY:
 		   case OUTPUT_MSG_BUZZ_CONF:
@@ -137,10 +133,10 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 		   case OUTPUT_MSG_RGB:
 				 dataTmp = *((uint8_t*)outputMsg->outputMsgParam);
 				 outputVariable.aqiLevel = (uint8_t)dataTmp;
-			if(outputVariable.light == LIGHT_BRIGHT)
-				memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
-			else
-				memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+//			if(outputVariable.light == LIGHT_BRIGHT)
+//				memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+//			else
+//				memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
 				
 		   	break;
 			 case OUTPUT_MSG_TIMING:				 
@@ -150,13 +146,17 @@ if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg
 				 //	if((*(uint8_t*)outputMsg->outputMsgParam) == 0)
 				 outputVariable.wifiLedType = (_eWIFILED)(*(uint8_t*)outputMsg->outputMsgParam);
 				 break;
+			 case OUTPUT_MSG_FDIS_NRL:
+			 case OUTPUT_MSG_FDIS_CLR:
+			 case OUTPUT_MSG_FDIS_WRN:
+			 	outputVariable.filter = outputMsg->outputMsg - OUTPUT_MSG_FDIS_NRL;
+			 	break;
 			 default:
 				break;
 	 }
 
 }
 BuzzerLedTimer();
-
 }
 
 }
@@ -382,29 +382,10 @@ static void SetLightBrightness(uint16_t brightness)
 ********************************/
 void SetBlueLed(uint8_t op)
 {
-<<<<<<< HEAD
 	if(op == 1)  
 		SetAllLedPowerOn();	
 	else	
 		SetAllLedPowerOff();	
-=======
-	if(op == 1)
-	{  
-		rgbLightValue.FilterCompare = 0x200;			
-		rgbLightValue.RGB_BCompare = 0x0fff;	
-		rgbLightValue.RGB_GCompare = 0xff00;	
-		rgbLightValue.RGB_RCompare = 0xff00;	
-		rgbLightValue.LuminCompare = 10000;// for test
-	}
-	else
-	{
-		rgbLightValue.RGB_BCompare = 0xffff;	
-		rgbLightValue.RGB_GCompare = 0xffff;	
-		rgbLightValue.RGB_RCompare = 0xffff;	
-		rgbLightValue.LuminCompare = 0x0000;// for test	
-		rgbLightValue.FilterCompare = 0xffff;
-	}
->>>>>>> 280326df1592cec500654321349a987371c4c31a
 }
 
 /****************
@@ -438,9 +419,16 @@ void BuzzerLedTimer(void)
 {
 	static uint8_t buzCnt = 0;
 	static uint8_t ledCnt = 0;
+	static uint8_t filterLedCnt = 0;
+	static uint8_t buzTypeTmp = 0;
 	if(CheckTickExpired(buzLedTimer))
 	{
-		switch(outputVariable.buzType)
+		if(buzTypeTmp != outputVariable.buzType)
+		{
+			if(buzCnt == 0)
+			buzTypeTmp = outputVariable.buzType;
+		}
+		switch(buzTypeTmp)
 		{
 		case BUZ_TYPE_NONE:
 			if(GetBuzOnOffStatus() == ON)
@@ -531,6 +519,33 @@ void BuzzerLedTimer(void)
 		default:
 			break;
 		}
+		switch(outputVariable.filter)
+		{
+			case FILTER_LED_NORMAL:
+				FILTER_LED_OFF();
+				break;
+			case FILTER_LED_CLR:
+				if(filterLedCnt == 0)
+					FILTER_LED_ON();
+				else if(filterLedCnt == 5)
+					FILTER_LED_OFF();
+				if(filterLedCnt >= 10)
+				filterLedCnt++;				
+				break;
+			case FILTER_LED_WARN:
+				if(filterLedCnt == 0)
+					FILTER_LED_ON();
+				else if(filterLedCnt == 10)
+					FILTER_LED_OFF();
+				if(filterLedCnt >= 20)
+				filterLedCnt++;	
+				break;
+
+
+
+
+		default:
+			break;}
 		
 	}
 		RgbLightFade();
@@ -554,10 +569,6 @@ void RgbLightFade(void)
 		currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
 		tmp = *(rgbData+i);
 		tmp <<=7;
-//	 if(((*GetModeState())== 0)||(tmp == 0x0000))
-//	 tmp&=0xff00; 
-//	 else
-//		 tmp|=0xff;
 	if(currentCC != tmp)
 	{
 		if(currentCC>tmp)
@@ -587,7 +598,7 @@ void RgbLightFade(void)
 		if(ledStandbyFlag == 1)
 	{
 		tmp = *(rgbData+i);
-		tmp <<=8;
+		tmp <<=7;
 		for(i=0;i<5;i++)
 		{
 			currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;

@@ -1,7 +1,7 @@
 #ifndef _MAINTASK_H_
 #define _MAINTASK_H_
 #include "main.h"
-#define DEFALUT_SOFTVER       0x03
+#define DEFALUT_SOFTVER       0x01
 
 
 #define FAST_MODE_TIME      30//minute
@@ -20,24 +20,24 @@
 #define DEFAULT_AUTO_HIGH      1500
 
 
-#define DEFAULT_DUST_GOOD_REF  80
-#define DEFAULT_DUST_FINE_REF  200
+#define DEFAULT_DUST_GOOD_REF  50
+#define DEFAULT_DUST_FINE_REF  100
 #define DEFAULT_DUST_BAD_REF   300
 
-#define DEFAULT_GAS_GOOD_REF   80
-#define DEFAULT_GAS_FINE_REF   40
+#define DEFAULT_GAS_GOOD_REF   60
+#define DEFAULT_GAS_FINE_REF   30
 #define DEFAULT_GAS_BAD_REF   20
 
-#define DEFAULT_LUMIN_DARK    100
-#define DEFAULT_LUMIN_LIGHT   500
+#define DEFAULT_LUMIN_DARK    200
+#define DEFAULT_LUMIN_LIGHT   400
 
 #define DEFAULT_RESET_HOUR      0
 #define DEFAULT_MAX_USE_HOUR   5000
 
-#define DEFAULT_GAS_BASE       2382
+#define DEFAULT_GAS_BASE       1000
 
 
-#define GAS_WARM_TIME         10 //warm up time 180 second
+#define GAS_WARM_TIME         300//300 //warm up time 180 second
 #define GAS_BASE_ADJ_TIME     600 // 10 minute time adjust the base value
 
 
@@ -46,7 +46,7 @@
 #define DEFAULT_DUSTSUBVALUE   0
 #define DEFAULT_AQILEVEL       AQI_LEVEL_GOOD
 #define DEFAULT_TIMING         TIMING_LEVEL_NONE
-#define DEFAULT_LED_STATE      BLUE_LED_OFF
+#define DEFAULT_LED_STATE      BLUE_LED_ON
 #define DEFAULT_FILTER_REMAIN  100
 #define DEFAULT_COVER_STATE   COVER_STATE_ON
 #define DEFAULT_FAULT          0
@@ -55,18 +55,25 @@
 #define DEFAULT_GASVALUE      0
 #define DEFAULT_LUMIN         0
 #define DEFAULT_NETSTATE      NET_IDLE
+#define DEFAULT_FILTER_DIS    FILTER_STATE_USEABLE
 
 #define DUST_UP_THRD     20
-#define GAS_UP_THRD      200
+#define GAS_UP_THRD      80
+#define TEMP_UP_THD      2
+#define HUMI_UP_THD      10
 
 #define TIMING_LEVEL_0    0
-#define TIMING_LEVEL_1    (1*3600)
-#define TIMING_LEVEL_2    (4*3600)
-#define TIMING_LEVEL_3    (8*3600)
+#define TIMING_LEVEL_1    (3600)
+#define TIMING_LEVEL_2    (14400)
+#define TIMING_LEVEL_3    (28800)
 
 #define FILTER_CNT_PERIOD  1000
 #define TIMING_CNT_PERIOD  1000
 #define FAULT_CNT_PERIOD   1000
+
+#define MOTOR_FAULT_DEATA 200
+#define LEDON_DURATION  10
+
 
 
 typedef struct
@@ -89,9 +96,10 @@ uint8_t hour;
 
 typedef enum
 {
-FILTER_STATE_USEABLE,// filter live time is not expired 
+FILTER_STATE_USEABLE = 0x00,// filter live time is not expired 
 FILTER_STATE_CHANGED,// filter live time is expird need to change
-FILTER_STATE_CLEAR
+FILTER_STATE_CLEAR,
+FILTER_STATE_CONF
 }_eFILTER_STATE;
 
 
@@ -189,12 +197,9 @@ _sSPEED speed;// running speed
 uint16_t gasValue;// current gas value adc value
 uint16_t lumin;
 uint8_t netStatus;
-<<<<<<< HEAD
 int16_t temperature;
-=======
-int8_t temperature;
->>>>>>> 280326df1592cec500654321349a987371c4c31a
-int8_t humi;
+uint8_t humi;
+uint8_t filterDis;
 }_sRUNNINGVALUE;
 
 #endif

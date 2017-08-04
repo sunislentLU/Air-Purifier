@@ -48,7 +48,7 @@ typedef enum
 #define PMS7003_TIMEOUT 0x1000
 
 uint8_t GetParticalDensity(uint16_t*pm25,uint16_t* pm100);
-
+uint8_t SetPms7003iStandby(uint8_t onoff);
 #endif
 
 

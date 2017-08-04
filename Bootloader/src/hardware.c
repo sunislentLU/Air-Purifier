@@ -34,6 +34,7 @@ void WifiUartInit(void)
 	USART_Initstructure.USART_Mode = USART_Mode_Rx|USART_Mode_Tx;
 	USART_Initstructure.USART_Parity = USART_Parity_No;
 	USART_Initstructure.USART_StopBits = USART_StopBits_1;
+	USART_Initstructure.USART_WordLength = USART_WordLength_8b;
 	USART_Init(USART2,&USART_Initstructure);
 	USART_Cmd(USART2,ENABLE);
 

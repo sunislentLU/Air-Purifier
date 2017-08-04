@@ -1,5 +1,6 @@
 #include "bspOutput.h"
 #include "stm32f0xx.h"
+#include "stdio.h"
 void BuzzerGpioInit(void);
 void BuzzLightTimerInit(void);
 void LedGpioInit(void);
@@ -13,7 +14,9 @@ void RgbLightInit(void);
 void SetLed1Off(void);
 void FanTimerCounterStop(void);
 void FanTimerStart(void);
+void DebugUartInit(void);
 _sRGBLIGHT rgbLightValue;
+extern uint8_t* GetDustSen(void);
 void OutputHardwareInit(void)
 {
 
@@ -28,6 +31,9 @@ void OutputHardwareInit(void)
 	FanTimerInit(); 
 	RGBLightTimer_Init();
 	TimerNvicInit();
+	if((*GetDustSen()) == 0x02)
+	DebugUartInit();
+
 
 
 }
@@ -51,7 +57,8 @@ void BuzzerGpioInit(void)
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
  GPIO_Init(GPIOB, &GPIO_InitStructre);
  GPIO_PinAFConfig(GPIOB,GPIO_PinSource14,GPIO_AF_1);
-	
+if((*GetDustSen()) == 0x01)
+{
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_OUT;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
  GPIO_InitStructre.GPIO_Pin  = GPIO_Pin_9;
@@ -59,7 +66,32 @@ void BuzzerGpioInit(void)
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
  GPIO_Init(GPIOA, &GPIO_InitStructre);
 }
+}
 
+void DebugUartInit(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	USART_InitTypeDef USART_InitStructure;
+   
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9|GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_PinAFConfig(GPIOA,GPIO_PinSource9,GPIO_AF_1);
+	GPIO_PinAFConfig(GPIOA,GPIO_PinSource10,GPIO_AF_1);
+	
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1,ENABLE);
+	USART_InitStructure.USART_BaudRate = 115200;
+	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+	USART_InitStructure.USART_Mode = USART_Mode_Rx|USART_Mode_Tx;
+	USART_InitStructure.USART_Parity = USART_Parity_No;
+	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_Init(USART1,&USART_InitStructure);
+	USART_Cmd(USART1,ENABLE);
+}
 
 
 void LedGpioInit(void)
@@ -98,8 +130,6 @@ void LedGpioInit(void)
  TIM1_LED_OFF();
  TIM2_LED_OFF();
  TIM3_LED_OFF();
- //SetLed1Off();
-
 }
 
 
@@ -121,7 +151,7 @@ void FanGpioInit(void)
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_AF;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
  GPIO_InitStructre.GPIO_Pin  = GPIO_Pin_15;
- GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_UP;
+ GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_DOWN;
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_50MHz;
  GPIO_Init(GPIOB, &GPIO_InitStructre);
  GPIO_PinAFConfig(GPIOB,GPIO_PinSource15, GPIO_AF_1);
@@ -221,14 +251,15 @@ void BuzzLightTimerInit(void)
 	TIM_TimebaseInitStructure.TIM_Prescaler = 0;
 	TIM_TimebaseInitStructure.TIM_RepetitionCounter = 0;  	
 	TIM_TimeBaseInit(TIM15,&TIM_TimebaseInitStructure);
-
+    if((*GetDustSen()) == 0x01)
+    {
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_Toggle;
 	TIM_OCInitstructure.TIM_Pulse = buzzPeriod;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 	TIM_OC1Init(TIM15, &TIM_OCInitstructure);
 	TIM_OC1PreloadConfig(TIM15,TIM_OCPreload_Disable);
-
+    }
 	tmp = rgbLightValue.FilterCompare;
 	tmp <<=8;
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
@@ -483,3 +514,35 @@ uint16_t GetLightCurrentCompare(void)
 {
 	return TIM_GetCapture4(TIM3);
 }
+
+#ifdef __GNUC__
+  /* With GCC/RAISONANCE, small printf (option LD Linker->Libraries->Small printf
+     set to 'Yes') calls __io_putchar() */
+  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif /* __GNUC__ */
+
+
+#ifdef UART_DEBUG
+PUTCHAR_PROTOTYPE
+{
+  /* Place your implementation of fputc here */
+  /* e.g. write a character to the USART */
+  USART_SendData(USART1, (uint8_t) ch);
+
+  /* Loop until transmit data register is empty */
+  while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
+  {}
+
+  return ch;
+}
+#endif
+
+
+
+
+
+
+
+

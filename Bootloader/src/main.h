@@ -43,7 +43,7 @@
 
 
 #define PAGE_SIZE  1024
-#define APP_PAGE_NUM   52
+#define APP_PAGE_NUM   53
 
 typedef enum
 {

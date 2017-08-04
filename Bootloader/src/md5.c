@@ -171,7 +171,7 @@ void CheckCodeMd5Result(unsigned char* resultBuff,uint16_t dataLen,uint32_t star
 		memset(dataBuff,0,64);
 	}
 	memcpy(dataBuff,(uint32_t*)addr,lengthMod);
-	if(lengthMod != 56)
+	if(lengthMod != 55)
 	{
 		u8Pointer = (unsigned char*)dataBuff;
 		u8Pointer+=lengthMod;
@@ -185,7 +185,15 @@ void CheckCodeMd5Result(unsigned char* resultBuff,uint16_t dataLen,uint32_t star
 		u8Pointer +=56;
 		memcpy(u8Pointer,&bitNum,4);
 		MD5Transform(stateTemp,dataBuff);
+	}else
+	{
+		u8Pointer = (unsigned char*)dataBuff;
+		u8Pointer+=lengthMod;
+		*u8Pointer++=0x80;
+	  memcpy(u8Pointer,&bitNum,4);
+		MD5Transform(stateTemp,dataBuff);
 	}
+	
 	Encode(resultBuff,stateTemp,16);
 }
 

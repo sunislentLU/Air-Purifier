@@ -13,6 +13,15 @@
 #include "FreeRTOSConfig.h"
 #include "timers.h"
 #include "semphr.h"
+#include "stdio.h"
+
+
+#ifdef UART_DEBUG
+#define DEBUG  printf
+#else
+#define DEBUG  {;}
+
+#endif
 
 /* Exported types ------------------------------------------------------------*/
 //---------------------------input message define area--------------------------------------
@@ -211,7 +220,10 @@ OUTPUT_MSG_LIGHT,
 OUTPUT_MSG_SPEED,
 OUTPUT_MSG_RGB,
 OUTPUT_MSG_TIMING,
-OUTPUT_MSG_NET
+OUTPUT_MSG_NET,
+OUTPUT_MSG_FDIS_NRL,//ÂËÍøÕý³£
+OUTPUT_MSG_FDIS_CLR,//ÂËÍøÇå³ý
+OUTPUT_MSG_FDIS_WRN,//ÂËÍøÊÙÃü¸æ¾¯
 }_eOUTPUTMSG_TYPE;
 
 typedef struct
@@ -264,12 +276,20 @@ WIFI_UP_NONE = 0x00,
 WIFI_UP_MODE,
 WIFI_UP_DUST,
 WIFI_UP_DUST_SUB,
+WIFI_UP_AQI,
+WIFI_UP_TIMING,
+WIFI_UP_FILTER,
+WIFI_UP_LED,
+WIFI_UP_FAULT,	
+WIFI_UP_TEMP,
+WIFI_UP_HUMI,
+WIFI_UP_VER,	
 WIFI_UP_GAS,
+WIFI_UP_COVERSTA,
 WIFI_UP_BLUE,
 WIFI_UP_LOCK,
 WIFI_UP_VERSION,
 WIFI_UP_SPEED,
-WIFI_UP_LED,
 WIFI_UP_ALL,
 WIFI_SET_CONN,
 WIFI_REBOOT,
@@ -310,6 +330,8 @@ typedef enum
  TERM_FILTERLIVE,
  TERM_LED,
  TERM_FAULT, 
+ TERM_TEMP,
+ TERM_HUMI,
  TERM_VERSION,
  TERM_COVER, 
  TERM_TVOC,

@@ -29,6 +29,15 @@ void WifiGPIOInit(void)
 	GPIO_Init(WIFI_GPIO_PORT, &GPIO_InitStructure);
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource2,GPIO_AF_1);
 	GPIO_PinAFConfig(GPIOA,GPIO_PinSource3,GPIO_AF_1);
+
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Pin = WIFI_RST_PIN;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(WIFI_GPIO_PORT, &GPIO_InitStructure);
+ 
+	
 }
 void WifiUartInit(void)
 {
@@ -43,6 +52,7 @@ void WifiUartInit(void)
 	USART_Initstructure.USART_Mode = USART_Mode_Rx|USART_Mode_Tx;
 	USART_Initstructure.USART_Parity = USART_Parity_No;
 	USART_Initstructure.USART_StopBits = USART_StopBits_1;
+	USART_Initstructure.USART_WordLength = USART_WordLength_8b;
 	USART_Init(WIFI_UART,&USART_Initstructure);
 	USART_ITConfig(WIFI_UART,USART_IT_RXNE,ENABLE);
 	USART_ITConfig(WIFI_UART,USART_IT_TC, ENABLE);// enable transmit complete interrupt

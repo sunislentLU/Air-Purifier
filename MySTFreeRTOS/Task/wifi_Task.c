@@ -209,18 +209,11 @@ void WIFITask(void* arg)
 					}					
 				break;
 
-//				case WIFI_REBOOT:
-//					SendCmd2WifiModule(CMD_REBOOT_WIFI,sendCmdArray,uartSendBuf,uartSendFifo);
-//					if(xSemaphoreTake(semRecComplete, 1000))
-//					{ 
-//						if(ParseWifiDatas(wifiFrame))
-//						{
-//							if(wifiFrame->cmd == CMD_REBOOT_WIFI)	// respond right												
-//							{
-//							}
-//						}
-//					}					
-//				break;
+				case WIFI_REBOOT:
+					WIFI_RST_ENBALE();
+					vTaskDelay(5);
+					WIFI_RST_DISABLE();
+				break;
 
 			  default:
 				break;
@@ -433,9 +426,17 @@ void WIFITask(void* arg)
 			switch(command)
 			{           
 				case WIFI_UP_MODE:
+				case WIFI_UP_DUST:
+				case WIFI_UP_DUST_SUB:
+				case WIFI_UP_GAS:
+				case WIFI_UP_LED:
+				case WIFI_UP_TIMING:
+				case WIFI_UP_TEMP:
+				case WIFI_UP_HUMI:
+				case WIFI_UP_AQI:
 					if(netStatus < 1)
 						break;
-					TransmitTermData(TERM_MODE,termination_info,uartSendBuf,uartSendFifo);
+					TransmitTermData(command - 1,termination_info,uartSendBuf,uartSendFifo);
 					if(xSemaphoreTake(semRecComplete, 100))
 						{
 							if(ParseWifiDatas(wifiFrame))
@@ -445,11 +446,12 @@ void WIFITask(void* arg)
 									}
 							}
 					break;
-			  case WIFI_UP_DUST:
+
+/*			  case WIFI_UP_DUST:
 			  	TransmitTermData(TERM_DUST,termination_info,uartSendBuf,uartSendFifo);
 				break;
-
 				case WIFI_UP_DUST_SUB:
+
 					TransmitTermData(TERM_DUST_SUB,termination_info,uartSendBuf,uartSendFifo);
 					break;
 			  case WIFI_UP_GAS:
@@ -458,6 +460,18 @@ void WIFITask(void* arg)
 			  case WIFI_UP_LED:
 			  	TransmitTermData(TERM_LED,termination_info,uartSendBuf,uartSendFifo);
 			 	break;
+				case WIFI_UP_TIMING:
+					TransmitTermData(TERM_TIMING,termination_info,uartSendBuf,uartSendFifo);
+					break;
+				case WIFI_UP_TEMP:
+					TransmitTermData(TERM_TEMP,termination_info,uartSendBuf,uartSendFifo);
+					break;
+				case WIFI_UP_HUMI:
+					TransmitTermData(TERM_HUMI,termination_info,uartSendBuf,uartSendFifo);
+					break;
+				case WIFI_UP_AQI:
+					TransmitTermData(TERM_AQI,termination_info,uartSendBuf,uartSendFifo);
+					break;*/
 			  case WIFI_UP_LOCK:
 			 	break;
 			  case WIFI_UP_SPEED:
@@ -487,6 +501,12 @@ void WIFITask(void* arg)
 							}
 						}
 					}					
+				break;
+
+				case WIFI_REBOOT:
+					WIFI_RST_ENBALE();
+					vTaskDelay(5);
+					WIFI_RST_DISABLE();					
 				break;
 
 			  default:

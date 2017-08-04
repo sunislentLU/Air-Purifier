@@ -31,6 +31,14 @@ typedef enum
 	TIMINGLED_TYPE_3
 }_eTIMINGLED;
 
+
+typedef enum
+{
+	FILTER_LED_NORMAL = 0x00,
+	FILTER_LED_CLR,
+	FILTER_LED_WARN
+}_eFILTERLED;
+
 typedef struct
 {
   _eBUZTYPE buzType;
@@ -38,6 +46,7 @@ typedef struct
 	_eTIMINGLED timingLedType;
 	uint8_t     aqiLevel;
 	uint8_t light;
+	uint8_t filter;
 }_sOUTPUT_VAR;
 
 typedef enum

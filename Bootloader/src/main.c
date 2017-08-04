@@ -81,39 +81,39 @@ int main(void)
 	oldVersion = (uint16_t)(*((__IO uint32_t*)readAddr));//旧版本的固件
 	if(oldVersion == 0xffff)
 		oldVersion = 0x0001;
-	if((bootArg == 0xffff)||(bootArg == 0x1234))//update complete 
-	{
+//	if((bootArg == 0xffff)||(bootArg == 0x1234))//update complete 
+//	{
 		//RebootWifiModule();
 	//	WaitDelayms(1000);
 		bootState = BOOT_WAIT2APP;		
-	}else
-	{
-		if(oldVersion != bootArg)
-		{
-			WIFI_LED_ON();
-			updateVer= bootArg;
-			FLASH_Unlock();
-			programAddr = APP_START_ADDR;														
-			for(i=0;i<APP_PAGE_NUM;i++)							
-			{																							
-				waitCnt = 0;															
-				ret = FLASH_ErasePage(programAddr);															
-				if(ret != FLASH_COMPLETE)//错误															
-				{									
-					break;															
-				}								
-				programAddr+=PAGE_SIZE;							
-			}														
-			if(i==APP_PAGE_NUM)//擦除成功						 							
-			{																
-				bootState = BOOT_WAIT_REQ;								
-				waitCnt = 0;
-				recCnt = 0;
-				memset(recBuff,0,134);															
-				FLASH_Lock();						
-			}			
-		}
-	}
+//	}else
+//	{
+//		if(oldVersion != bootArg)
+//		{
+//			WIFI_LED_ON();
+//			updateVer= bootArg;
+//			FLASH_Unlock();
+//			programAddr = APP_START_ADDR;														
+//			for(i=0;i<APP_PAGE_NUM;i++)							
+//			{																							
+//				waitCnt = 0;															
+//				ret = FLASH_ErasePage(programAddr);															
+//				if(ret != FLASH_COMPLETE)//错误															
+//				{									
+//					break;															
+//				}								
+//				programAddr+=PAGE_SIZE;							
+//			}														
+//			if(i==APP_PAGE_NUM)//擦除成功						 							
+//			{																
+//				bootState = BOOT_WAIT_REQ;								
+//				waitCnt = 0;
+//				recCnt = 0;
+//				memset(recBuff,0,134);															
+//				FLASH_Lock();						
+//			}			
+//		}
+//	}
 	recCnt = 0;
 	memset(recBuff,0,134);//init data
 	memset(sendBuff,0,16);
@@ -156,14 +156,6 @@ int main(void)
 								break;
 							}
 							FLASH_Unlock();
-							ret = FLASH_ErasePage(BOOT_OPTION_ADDR);
-							if(ret == FLASH_COMPLETE)
-							{
-								bootArg = 0x1234;
-								ret = FLASH_ProgramHalfWord(BOOT_OPTION_ADDR,bootArg);
-								if(ret != FLASH_COMPLETE)
-									break;
-							}
 							programAddr = APP_START_ADDR;							
 							for(i=0;i<APP_PAGE_NUM;i++)
 							{															
@@ -193,7 +185,6 @@ int main(void)
 					break;
 				}
 				recCnt = 0;	
-        				
 			}
 		}else
 		//-------------------------time out check----------------------------------------------------
@@ -283,10 +274,10 @@ int main(void)
 				is_msExpired = 0;
 				waitCnt++;
         wifiLedCnt++;				
-				if(waitCnt >= 5000)// 1second to jump to app branch
+				if(waitCnt >= 1000)// 1second to jump to app branch
 				{
 					RebootWifiModule();			
-					WaitDelayms(100);		
+					WaitDelayms(3000);		
 					bootState = BOOT_WAIT2APP;
 					waitCnt = 0;		
 					break;
@@ -436,13 +427,12 @@ int main(void)
 				{	
 					if(recBuff[3] == 0x34)
 					{
-//						if(recBuff[4] >= 0x01)//无论上报是否成功都要转到新的APP中运行
-//						{
+						if(recBuff[4] >= 0x01)//无论上报是否成功都要转到新的APP中运行
+						{
 							waitCnt = 0;
-						//	RebootWifiModule();
 							bootState = BOOT_END; 
 							break;
-//						}
+						}
 					}
 				}
 			}
@@ -465,8 +455,9 @@ int main(void)
 	CheckCodeMd5Result(chkStr,dataLength,APP_START_ADDR);
 	readAddr = CHECK_RESULT;
 	memcpy(sendBuff,(uint32_t*)readAddr,16);
-//	if(strncmp((const char*)chkStr,(const char*)sendBuff,16) == 0)
-//	{
+	if(strncmp((const char*)chkStr,(const char*)sendBuff,16) == 0)
+	//if(1)
+	{
 	
     if (((*(__IO uint32_t*)APP_START_ADDR) & 0x2FFE0000 ) == 0x20000000)
     { 
@@ -476,17 +467,28 @@ int main(void)
       Jump_To_Application = (pFunction) JumpAddress;
       __set_MSP(*(__IO uint32_t*) APP_START_ADDR);  
       Jump_To_Application();
-		}else
-		{
-		  NVIC_SystemReset();
-		}
-			break;
-//	 }else
-//	{									
-//		waitCnt = 0;							
-//		bootState = BOOT_WAIT2APP; 
-//	}
-//	break;
+//		}else
+//		{
+//		  NVIC_SystemReset();
+//		}
+//			break;
+	 }else
+	{									
+		waitCnt = 0;						
+		RebootWifiModule();	
+		WaitDelayms(3000);
+		HardWareInit();	
+		bootState = BOOT_WAIT2APP; 
+	}
+ }else
+	{									
+		waitCnt = 0;						
+		RebootWifiModule();	
+		WaitDelayms(3000);
+		HardWareInit();	
+		bootState = BOOT_WAIT2APP; 
+	}
+	break;
 		default:
 			break;
 
@@ -519,6 +521,7 @@ void UartAskUpdateInfo(void)
 	uint8_t chksum;
 	uint8_t i;
 	uint32_t address;
+	uint8_t transmitData = 0;
 	pointer = sendBuff;
 	*pointer++ = 0xff;
 	*pointer++ = 0x00;
@@ -537,11 +540,18 @@ void UartAskUpdateInfo(void)
 	*pointer++ = 0x01;
 	pointer1 = sendBuff;
 	pointer1++;
-	chksum = CheckBufferChksum(pointer1,10);
+	chksum = CheckBufferChksum(pointer1,10);				
+	if(chksum >=0xfd)
+		{
+			chksum -=0x80;
+	    *pointer++ = chksum;
+			*pointer++ = 0xfd;
+		}else
 	*pointer++ = chksum;
 	*pointer = 0xfe;
+	transmitData = pointer - sendBuff +1;
 	pointer = sendBuff;
-	for(i=0;i<13;i++)
+	for(i=0;i<transmitData;i++)
 	{					
 		USART_SendData(USART2,*pointer);	
 		pointer++;
@@ -603,6 +613,7 @@ void UpdateDataRespond(uint16_t sn)
 	uint8_t* pointer,*pointer1;
 	uint8_t chksum;
 	uint8_t i;
+	uint8_t transmitData;
 	pointer = sendBuff;
 	*pointer++ = 0xff;
 	*pointer++ = 0x00;
@@ -612,10 +623,16 @@ void UpdateDataRespond(uint16_t sn)
 	*pointer++ = sn;
 	pointer1 = sendBuff +1;
 	chksum = CheckBufferChksum(pointer1,5);
+	if(chksum>=0xfd)
+	{
+		*pointer ++ = chksum - 0x80;
+		*pointer ++ = 0xfd;
+	}else
 	*pointer ++ = chksum;
 	*pointer = 0xfe;
+	transmitData = pointer - sendBuff +1;
 	pointer = sendBuff;
-	for(i=0;i<8;i++)
+	for(i=0;i<transmitData;i++)
 	{
 		USART_SendData(USART2,*pointer);	
 		pointer++;				
@@ -631,6 +648,7 @@ void UploadNewVersion(uint16_t firmVer)
 	uint8_t* pointer,*pointer1;
 	uint8_t chksum;
 	uint8_t i;
+	uint8_t transmitData;
 	uint32_t readAddr;
 	pointer = sendBuff;
 	*pointer++ = 0xff;
@@ -652,11 +670,17 @@ void UploadNewVersion(uint16_t firmVer)
 	*pointer++ = (uint8_t)(firmVer);
 	pointer1 = sendBuff;
 	pointer1++;
-	chksum = CheckBufferChksum(pointer1,12);
+	chksum = CheckBufferChksum(pointer1,12);		
+	if(chksum>=0xfd)
+	{
+		*pointer ++ = chksum -0x80;
+		*pointer ++ = 0xfd;
+	}else
 	*pointer ++ = chksum;
 	*pointer = 0xfe;
+	transmitData = pointer - sendBuff +1;
 	pointer = sendBuff;
-	for(i=0;i<15;i++)
+	for(i=0;i<transmitData;i++)
 	{	
 		USART_SendData(USART2,*pointer);	
 		pointer++;
