@@ -237,10 +237,10 @@ void MainTask(void* arg)
 //				SetPms7003iStandby(dustonoff);
          if(runningValue.mode != MODE_STANDBY)
          {
-		 	runningValue.blueLed ^=1;
-			SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
-			xQueueSend(outputMsgQueue,mOutputMsg,1);		
-            MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);	
+					 runningValue.blueLed ^=1;
+					 SendOutputMsg(OUTPUT_MSG_BLUELED,MSG_PARAM_NONE, &runningValue.blueLed);
+					 xQueueSend(outputMsgQueue,mOutputMsg,1);		
+					 MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);	
          }
 			break;
 			
@@ -319,11 +319,16 @@ void MainTask(void* arg)
 					if(((dataTemp>runningValue.dustDensitySub)&&((dataTemp - runningValue.dustDensitySub)>=DUST_UP_THRD))||
 						((dataTemp<runningValue.dustDensitySub)&&((runningValue.dustDensitySub-dataTemp)>=DUST_UP_THRD)))
 					{
+												
+						if(dataTemp>runningValue.dustDensitySub)//?????那芍????米那㊣?赤谷??D??AQI ?????那芍?o?℅a那㊣????10???D??辰?∩?
+						{
+							runningValue.dustDensitySub= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
+							AqiCaculation();
+						}else
 						runningValue.dustDensitySub= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 						mWifiSndMsg->propMsg = WIFI_UP_DUST_SUB;
 						xQueueSend(wifiSndQueue,mWifiSndMsg,0);											
-						if(dataTemp>runningValue.dustDensitySub)//?????那芍????米那㊣?赤谷??D??AQI ?????那芍?o?℅a那㊣????10???D??辰?∩?
-							AqiCaculation();
+
 						
 					}
 					runningValue.dustDensitySub= dataTemp;
@@ -349,12 +354,16 @@ void MainTask(void* arg)
 					if(((dataTemp>runningValue.gasValue)&&((dataTemp - runningValue.gasValue)>=GAS_UP_THRD))||
 						((dataTemp<runningValue.gasValue)&&((runningValue.gasValue-dataTemp)>=GAS_UP_THRD)))
 					{
-
+												
+						if(dataTemp<runningValue.gasValue)
+						{
+							runningValue.gasValue= dataTemp;
+							AqiCaculation();
+						}else
 						runningValue.gasValue= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 						mWifiSndMsg->propMsg = WIFI_UP_GAS;
 						xQueueSend(wifiSndQueue,mWifiSndMsg,0);								
-						if(dataTemp<runningValue.gasValue)
-							AqiCaculation();
+
 					}
 					runningValue.gasValue= dataTemp;// *((uint16_t*)mInputMsg->inputMsgParam);
 					
@@ -906,8 +915,9 @@ static void SecondLoopProcess(void)
 		#ifndef RGB_TEST	
 		AqiCaculation();
 		#endif
-		PrintRunningValue();
+		
 	}
+	PrintRunningValue();
 	}
 }
 /****************
@@ -957,12 +967,12 @@ static void TimingCount(void)
 		if(ledOnCnt == 0)				
 		{
 			runningValue.blueLed = BLUE_LED_OFF;	
-    mOutputMsg->outputMsgParam = &runningValue.blueLed;			
-   	mOutputMsg->outputMsg = OUTPUT_MSG_BLUELED;
-		mOutputMsg->paramType = MSG_PARAM_UCHAR;
-		xQueueSend(outputMsgQueue,mOutputMsg,1);
+			mOutputMsg->outputMsgParam = &runningValue.blueLed;
+			mOutputMsg->outputMsg = OUTPUT_MSG_BLUELED;
+			mOutputMsg->paramType = MSG_PARAM_UCHAR;
+			xQueueSend(outputMsgQueue,mOutputMsg,1);
 		}
-		}
+	}
 }
 
 
@@ -1152,19 +1162,53 @@ void SendOutputMsg(_eOUTPUTMSG_TYPE msg,uint8_t paraType,void* paraPointer)
 
 void PrintRunningValue(void)
 {
-	DEBUG("mode: %d\r",runningValue.mode);
-	DEBUG("pm2.5: %dug/m3\r",runningValue.dustDensity);
-	DEBUG("pm10: %dug/m3\r",runningValue.dustDensitySub);
-	DEBUG("aqi: %d\r",runningValue.aqiLevel);
-	DEBUG("gas: %dR\r",runningValue.gasValue);
-	DEBUG("gasbase: %dR\r",globalParameter.gasBase);
-	DEBUG("temp: %d'C\r",runningValue.temperature);
-	DEBUG("humi: %d\r",runningValue.humi);
-	DEBUG("timing: %d\r",runningValue.timingLevel);
-	DEBUG("target speed : %d rpm\r",runningValue.speed.targetSpd);
-	DEBUG("current speed : %d rpm\r",runningValue.speed.currentSpd);
-	DEBUG("lumin : %dmV\r",runningValue.lumin);
-	DEBUG("net : %d\r",runningValue.netStatus);
+//	DEBUG("mode: %d\r",runningValue.mode);
+//	DEBUG("pm2.5: %dug/m3\r",runningValue.dustDensity);
+//	DEBUG("pm10: %dug/m3\r",runningValue.dustDensitySub);
+//	DEBUG("aqi: %d\r",runningValue.aqiLevel);
+//	DEBUG("gas: %dR\r",runningValue.gasValue);
+//	DEBUG("gasbase: %dR\r",globalParameter.gasBase);
+//	DEBUG("temp: %d'C\r",runningValue.temperature);
+//	DEBUG("humi: %d\r",runningValue.humi);
+//	DEBUG("timing: %d\r",runningValue.timingLevel);
+//	DEBUG("target speed : %d rpm\r",runningValue.speed.targetSpd);
+//	DEBUG("current speed : %d rpm\r",runningValue.speed.currentSpd);
+//	DEBUG("lumin : %dmV\r",runningValue.lumin);
+//	DEBUG("net : %d\r",runningValue.netStatus);
+	uint8_t buffer[128];
+	uint16_t length = 0,length1= 0;
+	uint16_t i;
+	uint8_t* pointer,*pointer1;
+	uint8_t chksum;
+	pointer = (uint8_t*)&runningValue;
+	length = sizeof(_sRUNNINGVALUE);
+	length1 = sizeof(_sREFERENCE_VALUE);
+	memset(buffer,0,128);
+	pointer1 = buffer;
+	pointer1++;
+	memcpy(pointer1,pointer,length);
+	pointer1+=length;
+	pointer = (uint8_t*)&globalParameter;
+	memcpy(pointer1,pointer,length1);
+	pointer1 = buffer;
+	*pointer1++ = 0xFF;
+	length += length1;
+	chksum = 0;
+	for(i=0;i<length;i++)		
+	{
+		chksum += *(pointer1++);
+	}
+	*pointer1++ = chksum;
+	*pointer1 = 0x55;
+	pointer1 = buffer;
+	length+=3;
+	for(i=0;i<length;i++)
+	{
+		USART_SendData(USART1,*pointer1);
+		pointer1++;
+  while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET)
+  {}
+	}
 }
 
 

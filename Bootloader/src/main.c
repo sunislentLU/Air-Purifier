@@ -210,17 +210,21 @@ int main(void)
 			{
 				is_msExpired = 0;
 				waitCnt++;								
-				if(waitCnt >= 10000)// 1second to jump to app branch
+				if(waitCnt >= 8000)// 1second to jump to app branch
 				{
 					waitCnt = 0;
 					RebootWifiModule();
+					WaitDelayms(3000);
 					bootState = BOOT_WAIT2APP;
+					break;
           					
 				}			
 			if((waitCnt%500) == 0)// 100ms ask wifi module update information
 					UpdateRequire();			
 			}						
 		}
+		if(bootState == BOOT_WAIT2APP)
+			break;
 		  waitCnt = 0;
 			data = USART_ReceiveData(USART2);
 			if(data == 0xff)// head 

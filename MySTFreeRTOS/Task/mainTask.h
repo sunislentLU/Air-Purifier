@@ -183,15 +183,15 @@ typedef enum
 
 typedef struct 
 {
-_eMODE mode;// running mode 
+uint8_t mode;// running mode 
 uint16_t dustDensity;// pm2.5
 uint16_t dustDensitySub;//pm10
-_eAQI_LEVEL  aqiLevel; // aqi levels
-_eTIMING_LEVEL timingLevel;// timming value
-_eBLUELED blueLed;// blue led on or off
+uint8_t  aqiLevel; // aqi levels
+uint8_t timingLevel;// timming value
+uint8_t blueLed;// blue led on or off
 uint8_t filterState;// filter state useable
 uint16_t fault;
-_eCOVER_STATE topCover;
+uint8_t topCover;
 uint16_t sense;
 _sSPEED speed;// running speed
 uint16_t gasValue;// current gas value adc value
