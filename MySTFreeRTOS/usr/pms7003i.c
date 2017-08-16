@@ -24,7 +24,7 @@ uint8_t GetParticalDensity(uint16_t*pm25,uint16_t* pm100)
 		if((timeout--) == 0)
 			return 1;
 	}
-	I2C_TransferHandling(I2C2, PMS7003I_ADDR, 16, I2C_SoftEnd_Mode, I2C_Generate_Start_Read);
+	I2C_TransferHandling(I2C2, PMS7003I_ADDR, 16, I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
 	timeout = PMS7003_TIMEOUT;
 	for(i=0;i<16;i++)
 	{

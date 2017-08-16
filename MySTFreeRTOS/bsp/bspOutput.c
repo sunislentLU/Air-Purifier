@@ -98,11 +98,12 @@ void LedGpioInit(void)
 {
  GPIO_InitTypeDef GPIO_InitStructre;
  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOC,ENABLE);
+	
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_OUT;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
- GPIO_InitStructre.GPIO_Pin  = GPIO_Pin_13|GPIO_Pin_14;
- GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_UP;
- GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
+ GPIO_InitStructre.GPIO_Pin  = GPIO_Pin_13|GPIO_Pin_14|GPIO_Pin_15;
+ GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_NOPULL;
+ GPIO_InitStructre.GPIO_Speed = GPIO_Speed_50MHz;
  GPIO_Init(GPIOC, &GPIO_InitStructre);
 
  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB,ENABLE);
@@ -130,6 +131,7 @@ void LedGpioInit(void)
  TIM1_LED_OFF();
  TIM2_LED_OFF();
  TIM3_LED_OFF();
+ FILTER_LED_OFF();
 }
 
 

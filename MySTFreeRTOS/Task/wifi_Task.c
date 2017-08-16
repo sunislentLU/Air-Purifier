@@ -72,8 +72,8 @@ _sLOOPTIMER* wifiLedLoop;
 
 const _sTERMI_FORMAT termination_info[]={
 {0x01,MSG_PARAM_UCHAR,GetModeState},// mode
-{0x02,MSG_PARAM_SHORT,GetDustValue}, // pm2.5
-{0x02,MSG_PARAM_SHORT,GetDustSubValue}, // pm10
+{0x02,MSG_PARAM_USHORT,GetDustValue}, // pm2.5
+{0x02,MSG_PARAM_USHORT,GetDustSubValue}, // pm10
 {0x01,MSG_PARAM_UCHAR,GetAqiValue}, // aqi value
 {0x01,MSG_PARAM_UCHAR,GetTimingValue},// timing value
 {0x01,MSG_PARAM_UCHAR,GetFilterRemain}, //filter remain persent
@@ -84,14 +84,14 @@ const _sTERMI_FORMAT termination_info[]={
 {0x02,MSG_PARAM_USHORT,GetFirmwareVersion},// firmware version
 {0x01,MSG_PARAM_UCHAR,GetCoverState},   //cover state
 {0x02,MSG_PARAM_USHORT,GetTVOCValue},    //tvoc value of resistor
-{0x02,MSG_PARAM_SHORT,GetLuminValue},   // luminace value voltage
-{0x02,MSG_PARAM_UCHAR,GetFanSpeed},     // current speed
-{0x0a,MSG_PARAM_SHORT,GetFanSpdRef},    // mode speed reference 
-{0x06,MSG_PARAM_SHORT,GetDustRef},      //pm2.5 level reference 
-{0x06,MSG_PARAM_SHORT,GetAutoSpdRef},   //auto mode speed reference 
-{0x04,MSG_PARAM_SHORT,GetLuminRef},     // lumin level reference
-{0x02,MSG_PARAM_SHORT,GetDustSen},     //
-{0x06,MSG_PARAM_SHORT,GetTVOCRef}
+{0x02,MSG_PARAM_USHORT,GetLuminValue},   // luminace value voltage
+{0x02,MSG_PARAM_USHORT,GetFanSpeed},     // current speed
+{0x0a,MSG_PARAM_BIN,GetFanSpdRef},    // mode speed reference 
+{0x06,MSG_PARAM_BIN,GetDustRef},      //pm2.5 level reference 
+{0x06,MSG_PARAM_BIN,GetAutoSpdRef},   //auto mode speed reference 
+{0x04,MSG_PARAM_BIN,GetLuminRef},     // lumin level reference
+{0x02,MSG_PARAM_USHORT,GetDustSen},     //
+{0x06,MSG_PARAM_BIN,GetTVOCRef}
 };
                                     
 const _sWIFI_CMD_PROC sendCmdArray[]={
@@ -117,7 +117,7 @@ const _sWIFI_CMD_PROC sendCmdArray[]={
 const char productId[]={"160fa2b247a103e9160fa2b247a19201"};// xlink  product id
 const char productKey[]={"dc5bfec839156d57015c802a504042bd"};// xlink product key
 
-
+const char debug[]={"AT+NDGBL=1,1\r\n"};
 
 
 
@@ -267,14 +267,15 @@ void WIFITask(void* arg)
 		    }
 	    }else //not get pid and pkey respond
 			{
-				vTaskDelay(1000);
+				if(xSemaphoreTake(semRecComplete, 1000))
+					;
 				
 			}
-		}
-		
+		}else
+		vTaskDelay(1000);
 		}else// maybe the module is not good 
 		{
-		 
+			vTaskDelay(1000);
 		}
 		ClearReceiveBuffer();
 	break;
@@ -434,6 +435,7 @@ void WIFITask(void* arg)
 				case WIFI_UP_TEMP:
 				case WIFI_UP_HUMI:
 				case WIFI_UP_AQI:
+				case WIFI_UP_FAULT:
 					if(netStatus < 1)
 						break;
 					TransmitTermData(command - 1,termination_info,uartSendBuf,uartSendFifo);
@@ -446,6 +448,15 @@ void WIFITask(void* arg)
 									}
 							}
 					break;
+//				case WIFI_OPENDEBUG:
+//					dataPointer = (uint8_t*)debug;
+//				  while(*dataPointer !=0)
+//					{
+//						PushInFifo(uartSendFifo,*dataPointer);
+//						dataPointer++;
+//					}
+//					CheckFifoSendFirstData(uartSendFifo);
+//					break;
 
 /*			  case WIFI_UP_DUST:
 			  	TransmitTermData(TERM_DUST,termination_info,uartSendBuf,uartSendFifo);
@@ -620,7 +631,7 @@ void USART2_IRQHandler(void)
 		wifiFrame->checksum = wifiFrame->data[recCnt -1];
 		wifiFrame->data[recCnt -1] = 0;
 		recCnt = 0;
-  	xSemaphoreGiveFromISR(semRecComplete,0);
+  	xSemaphoreGiveFromISR(semRecComplete,&pxHigherPriorityTaskWoken);
 		uartState = WIFI_UART_HEAD;
 		break;
 	}
@@ -821,8 +832,30 @@ void TermDataStruct(uint8_t term_id,uint8_t* buffer)
  pointer = buffer;
  dataPointer = termination_info[term_id].getdatafunc();
  *pointer++ = term_id;
- *pointer++ = termination_info[term_id].length/256;
+
+ *pointer = termination_info[term_id].length/256;
+ *pointer &=0x0f;
+ switch(termination_info[term_id].datatype)
+ {
+ 	case MSG_PARAM_UCHAR:
+	case MSG_PARAM_CHAR:
+	*pointer |=(TERM_TYPE_CHAR<<4);
+	break;
+	case MSG_PARAM_SHORT:
+	*pointer |=(TERM_TYPE_SHORT<<4);
+	break;
+	case MSG_PARAM_USHORT:
+	*pointer |=(TERM_TYPE_USHORT<<4);	
+	break;
+	case MSG_PARAM_BIN:
+	*pointer |=(TERM_TYPE_BIN<<4);	
+	break;
+ default:
+ 	break;
+	}
+ pointer++;
  *pointer++ = termination_info[term_id].length%256;
+
  if((termination_info[term_id].datatype == MSG_PARAM_CHAR)||(termination_info[term_id].datatype == MSG_PARAM_UCHAR)) // byte
  {
   for(i=0;i<termination_info[term_id].length;i++)
@@ -830,7 +863,8 @@ void TermDataStruct(uint8_t term_id,uint8_t* buffer)
      *pointer++ = *dataPointer;
   }
 
- }else if((termination_info[term_id].datatype == MSG_PARAM_SHORT)||(termination_info[term_id].datatype == MSG_PARAM_USHORT))
+ }else if((termination_info[term_id].datatype == MSG_PARAM_SHORT)||(termination_info[term_id].datatype == MSG_PARAM_USHORT)||
+          (termination_info[term_id].datatype == MSG_PARAM_BIN))
   {
   for(i=0;i<termination_info[term_id].length;i++)
   {

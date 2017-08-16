@@ -5,6 +5,7 @@
 /*****************Functions*************************/
 extern uint16_t GetFanPeriod(void);
 extern uint8_t GetTempHumValue(uint16_t* temp,uint16_t* hum);
+extern void I2CSensorGenerateStop(void);
 void InputVariableInit(void);
 static void DustDensityProcess(void);
 //static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
@@ -28,8 +29,6 @@ QueueHandle_t inputMsgQueue;// message queue use to send message to maintask fro
 uint16_t gasValueBuf[INPUT_GAS_BUF_SIZE];
 uint16_t luminValueBuf[INPUT_LUMI_BUF_SIZE];
 uint16_t speedValueBuf[INPUT_SPEED_BUF_SIZE];
-//uint16_t tempValueBuf[INPUT_TEMP_BUF_SIZE];
-//uint16_t humiValueBuf[INPUT_HUMI_BUF_SIZE];
 
 _sLOOPTIMER* ms100Loop;
 _sLOOPTIMER* ms200Loop;
@@ -150,18 +149,26 @@ static void DustDensityProcess(void)
 	//if(CheckTickExpired(inputSpeedLoop)== pdTRUE)// wait dust sensor receive data in 1 sencond 
 	//{				
 	//dustValue = GetDustSensorRawData();
-	GetParticalDensity(&dustValue,&dustSubValue);
-	inputValue->dustValue = dustValue;
-	inputMsg->inputMsg = INPUT_MSG_DUST;			
-	inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);			
-	inputMsg->paramType = MSG_PARAM_SHORT;
-	xQueueSend(inputMsgQueue, inputMsg, 0);
-		
-	inputValue->dustSubValue = dustSubValue;
-	inputMsg->inputMsg = INPUT_MSG_DUST_SUB;			
-	inputMsg->inputMsgParam = (void*)&(inputValue->dustSubValue);			
-	inputMsg->paramType = MSG_PARAM_SHORT;
-	xQueueSend(inputMsgQueue, inputMsg, 0);
+	if(GetParticalDensity(&dustValue,&dustSubValue) == 0)
+	{
+		inputValue->dustValue = dustValue;
+		inputMsg->inputMsg = INPUT_MSG_DUST;			
+		inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);			
+		inputMsg->paramType = MSG_PARAM_SHORT;
+		xQueueSend(inputMsgQueue, inputMsg, 0);
+		inputValue->dustSubValue = dustSubValue;
+		inputMsg->inputMsg = INPUT_MSG_DUST_SUB;			
+		inputMsg->inputMsgParam = (void*)&(inputValue->dustSubValue);			
+		inputMsg->paramType = MSG_PARAM_SHORT;
+		xQueueSend(inputMsgQueue, inputMsg, 0);
+	}else
+	{
+		I2CSensorGenerateStop();
+		inputMsg->inputMsg = INPUT_MSG_DFAULT;						
+		inputMsg->paramType = MSG_PARAM_NONE;
+		xQueueSend(inputMsgQueue, inputMsg, 0);
+	}
+	
 	
 //		//*pBuff = dustValue;
 //		//dustCnt++;
@@ -276,7 +283,13 @@ void TempHumiScan(void)
 	uint32_t tmp;
 	
 	if(GetTempHumValue(&temptmp,&humtmp))	
-	return;
+	{
+		I2CSensorGenerateStop();
+		inputMsg->inputMsg = INPUT_MSG_HTFAULT;						
+		inputMsg->paramType = MSG_PARAM_NONE;
+		xQueueSend(inputMsgQueue, inputMsg, 0);
+	}
+	else{
 //	tempValueBuf[tempCnt] = temptmp;
 //	humiValueBuf[humiCnt] = humtmp;
 //	tempCnt ++;   
@@ -315,6 +328,7 @@ void TempHumiScan(void)
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
 //	}
+	}
 }
 
 

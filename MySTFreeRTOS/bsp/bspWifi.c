@@ -36,6 +36,7 @@ void WifiGPIOInit(void)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(WIFI_GPIO_PORT, &GPIO_InitStructure);
+	WIFI_RST_DISABLE();
  
 	
 }

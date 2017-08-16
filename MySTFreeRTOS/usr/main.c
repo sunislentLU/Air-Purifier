@@ -56,9 +56,10 @@ TaskVariablesInit();
 xTaskCreate(MainTask,"mainTask",configMINIMAL_STACK_SIZE-32,NULL,configMAX_PRIORITIES - 2 ,&mainTask);
 xTaskCreate(DeviceOutputTask,"deviceoutputtask",configMINIMAL_STACK_SIZE-32,NULL,configMAX_PRIORITIES - 3 ,&deviceOutputTask);
 xTaskCreate(DeviceInputTask,"deviceinputtask",configMINIMAL_STACK_SIZE-32 ,NULL,configMAX_PRIORITIES - 3 ,&deviceInputTask);
-xTaskCreate(WIFITask,"wifitask",configMINIMAL_STACK_SIZE-32,NULL,configMAX_PRIORITIES - 3 ,&wifiTask);
+xTaskCreate(WIFITask,"wifitask",configMINIMAL_STACK_SIZE-16,NULL,configMAX_PRIORITIES - 3 ,&wifiTask);
 vTaskStartScheduler();
 }
+
 /**
 *Function     Name:RuningEvironmentSetting  
 *Description:  setting running enviroment such as use iap 

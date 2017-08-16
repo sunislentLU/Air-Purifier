@@ -1,5 +1,5 @@
 #include "hdc1080.h"
-
+#include "bspInput.h"
 extern 	void vTaskDelay( const uint32_t xTicksToDelay );
 uint8_t GetTempHumi(uint16_t* temp,uint16_t* hum)
 {
@@ -92,6 +92,17 @@ uint8_t GetTempHumi(uint16_t* temp,uint16_t* hum)
 	}
 	I2C_ClearFlag(I2C2,I2C_ISR_STOPF);
 return RET_OK;
+}
+
+
+
+
+void I2CSensorGenerateStop(void)
+{
+
+	I2C_GenerateSTOP(I2C2,ENABLE);
+	I2C_Cmd(I2C2,DISABLE);
+	SensorI2CGpio_Init();
 }
 
 

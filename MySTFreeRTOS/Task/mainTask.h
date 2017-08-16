@@ -1,23 +1,33 @@
 #ifndef _MAINTASK_H_
 #define _MAINTASK_H_
 #include "main.h"
-#define DEFALUT_SOFTVER       0x01
-
+#define DEFALUT_SOFTVER       0x02
 
 #define FAST_MODE_TIME      30//minute
 
+#ifdef FOR_JP
 
-#define DEFAULT_SNZ_SPD_REF    500 // default snooze mode fan speed Unit rpm
-#define DEFAULT_JET_SPD_REF    1600 
-#define DEFAULT_LOW_SPD_REF    600
-#define DEFAULT_MEDIUM_SPD_REF 1000
-#define DEFAULT_HIGH_SPD_REF   1500
+#define DEFAULT_JET_SPD_REF    3200 
+#define DEFAULT_LOW_SPD_REF    640
+#define DEFAULT_MEDIUM_SPD_REF 920
+#define DEFAULT_HIGH_SPD_REF   1320
 #define DEFAULT_STANDBY_SPD_REF 0
 
+#define DEFAULT_AUTO_LOW       640
+#define DEFAULT_AUTO_MED       920
+#define DEFAULT_AUTO_HIGH      1320
 
-#define DEFAULT_AUTO_LOW       600
-#define DEFAULT_AUTO_MED       1200
-#define DEFAULT_AUTO_HIGH      1500
+#else
+#define DEFAULT_JET_SPD_REF    1600 
+#define DEFAULT_LOW_SPD_REF    640
+#define DEFAULT_MEDIUM_SPD_REF 920
+#define DEFAULT_HIGH_SPD_REF   1320
+#define DEFAULT_STANDBY_SPD_REF 0
+
+#define DEFAULT_AUTO_LOW       640
+#define DEFAULT_AUTO_MED       920
+#define DEFAULT_AUTO_HIGH      1320
+#endif
 
 
 #define DEFAULT_DUST_GOOD_REF  50
@@ -28,11 +38,10 @@
 #define DEFAULT_GAS_FINE_REF   30
 #define DEFAULT_GAS_BAD_REF   20
 
-#define DEFAULT_LUMIN_DARK    200
-#define DEFAULT_LUMIN_LIGHT   400
+#define DEFAULT_LUMIN_DARK    100
+#define DEFAULT_LUMIN_LIGHT   200
 
-#define DEFAULT_RESET_HOUR      0
-#define DEFAULT_MAX_USE_HOUR   5000
+
 
 #define DEFAULT_GAS_BASE       1000
 
@@ -57,6 +66,21 @@
 #define DEFAULT_NETSTATE      NET_IDLE
 #define DEFAULT_FILTER_DIS    FILTER_STATE_USEABLE
 
+#define DEFAULT_STBRATE   50
+#define DEFAULT_LOWRATE   75
+#define DEFAULT_MEDRATE   86
+#define DEFAULT_HIGHRATE  100
+#define DEFAULT_FASTRATE  110
+
+#define DEFAULT_RESET_HOUR      0
+#define DEFAULT_MAX_USE_HOUR   4320//24*30*6  6 months
+#define DEFAULT_RUNING_TIME    0
+
+
+#define DEFAULT_HOUR_UNIT     6000
+
+
+
 #define DUST_UP_THRD     20
 #define GAS_UP_THRD      80
 #define TEMP_UP_THD      2
@@ -74,6 +98,12 @@
 #define MOTOR_FAULT_DEATA 200
 #define LEDON_DURATION  10
 
+
+
+
+#define MOTOR_FAULT_BIT  0x01
+#define DUST_FAULT_BIT   0x02
+#define HT_FAULT_BIT     0x04
 
 
 typedef struct
@@ -156,14 +186,15 @@ uint16_t workingTime;
 uint16_t dustSen;
 uint16_t gasBase;
 uint16_t softVersion;
+uint16_t runningTime;
 }_sREFERENCE_VALUE;
 
 typedef enum
 {
 TIMING_LEVEL_NONE = 0x00,
-TIMING_1_HOUR,
-TIMING_4_HOUR,
-TIMING_8_HOUR
+TIMING_1_HOUR = 1,
+TIMING_4_HOUR = 4,
+TIMING_8_HOUR = 8
 }_eTIMING_LEVEL;
 
 typedef enum
@@ -201,6 +232,15 @@ int16_t temperature;
 uint8_t humi;
 uint8_t filterDis;
 }_sRUNNINGVALUE;
+
+typedef struct
+{
+	uint8_t stanbyRate;
+	uint8_t fastSpdRate;
+	uint8_t lowSpdRate;
+	uint8_t medSpdRate;
+	uint8_t highSpdRate;
+}_sLIVERATE;
 
 #endif
 
