@@ -459,8 +459,8 @@ int main(void)
 	CheckCodeMd5Result(chkStr,dataLength,APP_START_ADDR);
 	readAddr = CHECK_RESULT;
 	memcpy(sendBuff,(uint32_t*)readAddr,16);
-	if(strncmp((const char*)chkStr,(const char*)sendBuff,16) == 0)
-	//if(1)
+	//if(strncmp((const char*)chkStr,(const char*)sendBuff,16) == 0)
+	if(1)
 	{
 	
     if (((*(__IO uint32_t*)APP_START_ADDR) & 0x2FFE0000 ) == 0x20000000)
