@@ -1,54 +1,49 @@
 #ifndef _MAINTASK_H_
 #define _MAINTASK_H_
 #include "main.h"
-#define DEFALUT_SOFTVER       0x02
+#define DEFALUT_SOFTVER       0x07
 
-#define FAST_MODE_TIME      30//minute
+#define FAST_MODE_TIME      120//minute
 
 #ifdef FOR_JP
-
-#define DEFAULT_JET_SPD_REF    3200 
+#define DEFAULT_JET_SPD_REF    3000 
 #define DEFAULT_LOW_SPD_REF    640
-#define DEFAULT_MEDIUM_SPD_REF 920
-#define DEFAULT_HIGH_SPD_REF   1320
+#define DEFAULT_MEDIUM_SPD_REF 1320
+#define DEFAULT_HIGH_SPD_REF   1960
 #define DEFAULT_STANDBY_SPD_REF 0
 
 #define DEFAULT_AUTO_LOW       640
-#define DEFAULT_AUTO_MED       920
-#define DEFAULT_AUTO_HIGH      1320
-
+#define DEFAULT_AUTO_MED       1320
+#define DEFAULT_AUTO_HIGH      1960
 #else
-#define DEFAULT_JET_SPD_REF    1600 
-#define DEFAULT_LOW_SPD_REF    640
-#define DEFAULT_MEDIUM_SPD_REF 920
-#define DEFAULT_HIGH_SPD_REF   1320
+#define DEFAULT_JET_SPD_REF    1680//1680//3200 //3200//1600 //
+#define DEFAULT_LOW_SPD_REF    640//640//1600//640
+#define DEFAULT_MEDIUM_SPD_REF 1120//1120//1680//920
+#define DEFAULT_HIGH_SPD_REF   1320//1320//2700//1320//1600//1320//
 #define DEFAULT_STANDBY_SPD_REF 0
 
-#define DEFAULT_AUTO_LOW       640
-#define DEFAULT_AUTO_MED       920
-#define DEFAULT_AUTO_HIGH      1320
+#define DEFAULT_AUTO_LOW       640//640//1600//640
+#define DEFAULT_AUTO_MED       1120//1120//1680//920
+#define DEFAULT_AUTO_HIGH      1320//1320//2700//1320//1600//1320//
 #endif
-
-
-#define DEFAULT_DUST_GOOD_REF  50
-#define DEFAULT_DUST_FINE_REF  100
+#define DEFAULT_DUST_GOOD_REF  50  //unit ug/m3
+#define DEFAULT_DUST_FINE_REF  100 //unit ug/m3
 #define DEFAULT_DUST_BAD_REF   300
 
-#define DEFAULT_GAS_GOOD_REF   60
-#define DEFAULT_GAS_FINE_REF   30
+#define DEFAULT_GAS_GOOD_REF   60 //unit %
+#define DEFAULT_GAS_FINE_REF   30//unit %
 #define DEFAULT_GAS_BAD_REF   20
 
-#define DEFAULT_LUMIN_DARK    100
-#define DEFAULT_LUMIN_LIGHT   200
+#define DEFAULT_LUMIN_DARK    80  // unit mV
+#define DEFAULT_LUMIN_LIGHT   100 // unit mV
 
 
 
 #define DEFAULT_GAS_BASE       1000
 
 
-#define GAS_WARM_TIME         300//300 //warm up time 180 second
-#define GAS_BASE_ADJ_TIME     600 // 10 minute time adjust the base value
-
+#define GAS_WARM_TIME         300//300 unit second //warm up time 180 second
+#define GAS_BASE_ADJ_TIME     1200 //  unit second 10 minute time adjust the base value
 
 #define DEFAULT_MODE           MODE_STANDBY// MODE_AUTO// 
 #define DEFAULT_DUSTVALUE      0
@@ -64,6 +59,8 @@
 #define DEFAULT_GASVALUE      0
 #define DEFAULT_LUMIN         0
 #define DEFAULT_NETSTATE      NET_IDLE
+#define DEFAULT_TEMP          0
+#define DEFAULT_HUMI          0
 #define DEFAULT_FILTER_DIS    FILTER_STATE_USEABLE
 
 #define DEFAULT_STBRATE   50
@@ -77,11 +74,9 @@
 #define DEFAULT_RUNING_TIME    0
 
 
-#define DEFAULT_HOUR_UNIT     6000
 
 
-
-#define DUST_UP_THRD     20
+#define DUST_UP_THRD     4
 #define GAS_UP_THRD      80
 #define TEMP_UP_THD      2
 #define HUMI_UP_THD      10
@@ -95,15 +90,25 @@
 #define TIMING_CNT_PERIOD  1000
 #define FAULT_CNT_PERIOD   1000
 
-#define MOTOR_FAULT_DEATA 200
-#define LEDON_DURATION  10
+#define MOTOR_FAULT_DEATA 200  //unit rpm
 
 
+
+
+
+#define MINUTES_PER_HOUR    (60)  // unit minute
+#define UPDATE_PERIOD       10  // unit minute
+#define MS_PER_SECOND       1000
+#define MS_PER_MINUTE       60000
+#define SECOND_PER_HOUR     (3600)
+#define DEFAULT_HOUR_UNIT     (6000)
 
 
 #define MOTOR_FAULT_BIT  0x01
 #define DUST_FAULT_BIT   0x02
 #define HT_FAULT_BIT     0x04
+#define AQI_JUDE_CNT     10
+#define AQI_CRITZONT_JUDE_CNT 180
 
 
 typedef struct
@@ -242,6 +247,22 @@ typedef struct
 	uint8_t highSpdRate;
 }_sLIVERATE;
 
+typedef struct
+{
+	unsigned short offBrightness;
+	unsigned short onBrigthness;
+	unsigned short ledDelta;
+}_sLightAdj;
+
+
+typedef enum
+{
+	LED_ADJ_NONE = 0x00,
+	LED_ADJ_DARK ,
+	LED_ADJ_BRI,
+	LED_ADJ_CALI,
+	LED_ADJ_DONE
+}_eLEDADJSTATE;
 #endif
 
 

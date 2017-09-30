@@ -36,18 +36,20 @@
 extern  void MainTask(void* arg);
 extern void DeviceOutputTask(void* arg);
 extern void DeviceInputTask(void* arg);
-extern void WIFITask(void* arg);
 static void RuningEvironmentSetting(void);
 static void InterruptVectorRemap(void);
 extern void InputVariableInit(void);
 extern void OutputVariablesInit(void);
-extern void WifiVariablesInit(void);
 static void TaskVariablesInit(void);
 /*Variables*/
 xTaskHandle  mainTask;
 xTaskHandle deviceOutputTask;
 xTaskHandle deviceInputTask;
+#ifndef FOR_JP
 xTaskHandle wifiTask;
+extern void WIFITask(void* arg);
+extern void WifiVariablesInit(void);
+#endif
 
 int main(void)
 {
@@ -56,7 +58,9 @@ TaskVariablesInit();
 xTaskCreate(MainTask,"mainTask",configMINIMAL_STACK_SIZE-32,NULL,configMAX_PRIORITIES - 2 ,&mainTask);
 xTaskCreate(DeviceOutputTask,"deviceoutputtask",configMINIMAL_STACK_SIZE-32,NULL,configMAX_PRIORITIES - 3 ,&deviceOutputTask);
 xTaskCreate(DeviceInputTask,"deviceinputtask",configMINIMAL_STACK_SIZE-32 ,NULL,configMAX_PRIORITIES - 3 ,&deviceInputTask);
+#ifndef FOR_JP
 xTaskCreate(WIFITask,"wifitask",configMINIMAL_STACK_SIZE-16,NULL,configMAX_PRIORITIES - 3 ,&wifiTask);
+#endif
 vTaskStartScheduler();
 }
 
@@ -69,9 +73,9 @@ vTaskStartScheduler();
 *Date:         20170426
 *Author:       luxq
 **/
-	#ifdef UART_DEBUG
-	extern void DebugUartInit(void);
-	#endif
+#ifdef UART_DEBUG
+extern void DebugUartInit(void);
+#endif
 static void RuningEvironmentSetting(void)
 {
   InterruptVectorRemap();
@@ -100,7 +104,9 @@ static void TaskVariablesInit(void)
 {
    InputVariableInit();
    OutputVariablesInit();
+   #ifndef FOR_JP
    WifiVariablesInit();
+   #endif
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask,char* pcTaskName)

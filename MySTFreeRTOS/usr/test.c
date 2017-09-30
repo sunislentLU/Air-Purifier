@@ -6,7 +6,7 @@
 
 extern uint8_t isTestMode;
 extern uint8_t subTestMode;
-extern uint8_t entryTestMode;
+uint8_t entryTestMode;
 extern xQueueHandle inputMsgQueue;
 extern xQueueHandle outputMsgQueue;
 extern _sINPUT_MSG* mInputMsg;
@@ -26,6 +26,7 @@ extern void MainVariablesInit(void);
 extern void SendOutputMsg(_eOUTPUTMSG_TYPE msg,uint8_t paraType,void* paraPointer);
 extern   void SetFanSpeed(uint16_t spd);
 extern  void SetBuzzer(uint8_t op);
+extern  void FactoryInit(void);
 extern uint16_t GetFirmVersion(void);
 extern uint16_t* GetDustValue(void);
 extern uint8_t* GetHumi(void);
@@ -56,7 +57,8 @@ uint8_t thirdTestMode;
 const func ledFunction[8]={DisLedBit0,DisLedBit1,DisLedBit2,DisLedBit3,\
 	                         DisLedBit4,DisLedBit5,DisLedBit6,DisLedBit7};
 uint8_t lowHighFlag = 0;
-
+uint16_t* globalTemp;
+uint8_t intervalCnt = 0;
 void TestHandle(uint8_t testMode)
 {
 	if(entryTestMode == 0)
@@ -93,9 +95,7 @@ void TestHandle(uint8_t testMode)
 						  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
 						  vTaskDelay(1000);				 
 						  NVIC_SystemReset();						
-						break;	
-
-						
+						break;						
 						case KEY_MODE_PRESS:
 							if(isTestMode == TEST_MODE_SPD)
 							{
@@ -103,8 +103,8 @@ void TestHandle(uint8_t testMode)
 								if(subTestMode > DIS_FAST_SPD)
 									subTestMode = DIS_LOW_SPD;
 							  TestSetSpeed(subTestMode);
-							  MainSetMode(&subTestMode);
-                              MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);									
+							  MainSetMode(&subTestMode);                            
+							  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);									
 							  	
 							}else
 							{
@@ -112,11 +112,10 @@ void TestHandle(uint8_t testMode)
 								lowHighFlag = 0;
 								if(subTestMode == TEST_TAKE_FACORY)
 								{
-									ReadGlobalParameter();
-					                SaveGlobalParameter();
 									rgbLightValue.RGB_RCompare = 0x00;
-									rgbLightValue.RGB_GCompare = 0xff;
-									rgbLightValue.RGB_BCompare = 0xff;
+									rgbLightValue.RGB_GCompare = 0x00;
+									rgbLightValue.RGB_BCompare = 0xcc;
+									LedDataDisplay(0xff);
 								}
 								if(subTestMode > TEST_TAKE_FACORY)
 									subTestMode = TEST_SOFT_VERSION;
@@ -124,13 +123,30 @@ void TestHandle(uint8_t testMode)
 								MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);	
 							}
 						break;
-								
+						case KEY_MODE_HOLD:
+						case KEY_MODE_LPRESS:
+						   if(isTestMode == TEST_MODE_SPD)
+						   {
+						  	  SaveGlobalParameter();
+							  MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
+						   }
+						   else if(subTestMode == TEST_TAKE_FACORY)
+						   {
+						     FactoryInit();
+					         SaveGlobalParameter();
+							 MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);						 						  
+							 vTaskDelay(1000);				 					  
+							 NVIC_SystemReset();	
+						   }
+						break;
 						case KEY_VOLUME_PRESS:
 							if(isTestMode == TEST_MODE_SPD)
 							{
 								runningValue.speed.targetSpd += 20;
+								
 								if(runningValue.speed.targetSpd>=4000)
 									runningValue.speed.targetSpd = 4000;
+								*globalTemp = runningValue.speed.targetSpd;
 								SendOutputMsg(OUTPUT_MSG_SPEED,MSG_PARAM_USHORT,&runningValue.speed.targetSpd);
 								MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
 							}else
@@ -148,14 +164,12 @@ void TestHandle(uint8_t testMode)
 									if(thirdTestMode>SEN_LUMI)
 										thirdTestMode = SEN_DUST;
 								break;
-							    case TEST_LED_KEY:
+							    case TEST_KEY_LED_DIS:
 									if(thirdTestMode >LED_DIS_STA6)
 										thirdTestMode = LED_DIS_ON;
 								break;
 								case TEST_TAKE_FACORY:
-
-
-
+									
 								break;					
 								default:
 								break;
@@ -168,8 +182,10 @@ void TestHandle(uint8_t testMode)
 							if(isTestMode == TEST_MODE_SPD)
 							{
 								runningValue.speed.targetSpd -= 20;
+								
 								if(runningValue.speed.targetSpd<=200)
 									runningValue.speed.targetSpd = 200;
+								*globalTemp = runningValue.speed.targetSpd;
 								SendOutputMsg(OUTPUT_MSG_SPEED,MSG_PARAM_USHORT,&runningValue.speed.targetSpd);								
 								MainSetBuzzer(OUTPUT_MSG_BUZZ_KEY);
 
@@ -215,13 +231,14 @@ void OutputTestHandle(void)
 				{
 				case OUTPUT_MSG_MODE:
 				   mode = *((uint8_t*)outputMsg->outputMsgParam);
-				   rgbLightValue.LuminCompare = 0x7f;				   	
+				   rgbLightValue.LuminCompare = 0xCC;				   	
 					break;
 				case OUTPUT_MSG_LIGHT:
 					break;	
 				case OUTPUT_MSG_SPEED:
 				    dataTmp = *((uint16_t*)outputMsg->outputMsgParam);
 					 SetFanSpeed(dataTmp);
+					 MotorPowerCtrl(1);
 					if(mode >= TEST_LED_SPDLOW)
 					{
 						dataTmp/=20;
@@ -278,24 +295,31 @@ void TestSetSpeed(uint8_t testType)
 		{
 			case DIS_LOW_SPD:
 				runningValue.speed.targetSpd = globalParameter.speedRef.lowSpdRef;
+				globalTemp = &globalParameter.speedRef.lowSpdRef;
 				break;
 				case DIS_MED_SPD:
 					runningValue.speed.targetSpd = globalParameter.speedRef.mediumSpdRef;
+					globalTemp = &globalParameter.speedRef.mediumSpdRef;
 				break;
 				case DIS_HIGH_SPD:
 				runningValue.speed.targetSpd = globalParameter.speedRef.highSpdRef;
+				globalTemp = &globalParameter.speedRef.highSpdRef;
 				break;
 				case DIS_ALOW_SPD:
 				runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoLowSpdRef;
+				globalTemp = &globalParameter.atuoSpdRef.autoLowSpdRef;
 				break;
 				case DIS_AMED_SPD:
 				runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoMedSpdRef;
+				globalTemp = &globalParameter.atuoSpdRef.autoMedSpdRef;
 				break;
 				case DIS_AHIGH_SPD:
 				runningValue.speed.targetSpd = globalParameter.atuoSpdRef.autoHighSpdRef;
+				globalTemp = &globalParameter.atuoSpdRef.autoHighSpdRef;
 				break;
 				case DIS_FAST_SPD:
 				runningValue.speed.targetSpd = globalParameter.speedRef.jetSpdRef;
+				globalTemp = &globalParameter.speedRef.jetSpdRef;
 				break;
 				default:
 				break;			
@@ -313,10 +337,7 @@ void LedDataDisplay(uint8_t dat)
 		opBit >>=1; 
 		ledFunction[i]((opBit&0x01));
 	}
-
-
 }
-
 void TestModeLedIndication(void)
 {
 	uint16_t dataTemp;
@@ -342,15 +363,14 @@ void TestModeLedIndication(void)
 						if(lowHighFlag)
 						{
 							POWER_LED_ON();
-							LedDataDisplay((uint8_t)(dataTemp>>8));
-							
+							LedDataDisplay((uint8_t)(dataTemp>>8));							
 						}
 						else
 						{
 							POWER_LED_OFF();
 							LedDataDisplay((uint8_t)dataTemp);
 						}
-						rgbLightValue.RGB_RCompare = 0xff;
+						rgbLightValue.RGB_RCompare = 0x4C;
 						rgbLightValue.RGB_GCompare = 0;
 						rgbLightValue.RGB_BCompare = 0;
 					 	break;
@@ -368,7 +388,7 @@ void TestModeLedIndication(void)
 						}
 
 						rgbLightValue.RGB_RCompare = 0;
-						rgbLightValue.RGB_GCompare = 0xff;
+						rgbLightValue.RGB_GCompare = 0x99;
 						rgbLightValue.RGB_BCompare = 0;
 					 	break;
 					 case DIS_RUN_TIME:
@@ -385,7 +405,7 @@ void TestModeLedIndication(void)
 						}
 						rgbLightValue.RGB_RCompare = 0;
 						rgbLightValue.RGB_GCompare = 0;
-						rgbLightValue.RGB_BCompare = 0xff;
+						rgbLightValue.RGB_BCompare = 0x99;
 					 	break;
 					 default:
 					 	break;
@@ -424,7 +444,7 @@ void TestModeLedIndication(void)
 							POWER_LED_OFF();
 							LedDataDisplay((uint8_t)dataTemp);
 						}	
-						rgbLightValue.RGB_RCompare = 0xff;
+						rgbLightValue.RGB_RCompare = 0x4C;
 						rgbLightValue.RGB_GCompare = 0;
 						rgbLightValue.RGB_BCompare = 0;
 						break;
@@ -433,7 +453,7 @@ void TestModeLedIndication(void)
 							POWER_LED_OFF();
 							LedDataDisplay((uint8_t)dataTemp);
 						rgbLightValue.RGB_RCompare = 0;
-						rgbLightValue.RGB_GCompare = 0xff;
+						rgbLightValue.RGB_GCompare = 0x99;
 						rgbLightValue.RGB_BCompare = 0;
 						break;
 						case SEN_HUMI:
@@ -442,7 +462,7 @@ void TestModeLedIndication(void)
 							LedDataDisplay((uint8_t)dataTemp);
 						rgbLightValue.RGB_RCompare = 0;
 						rgbLightValue.RGB_GCompare = 0;
-						rgbLightValue.RGB_BCompare = 0xff;
+						rgbLightValue.RGB_BCompare = 0x99;
 						break;
 						case SEN_LUMI:
 						dataTemp = *(uint16_t*)GetLuminValue();
@@ -457,8 +477,8 @@ void TestModeLedIndication(void)
 							LedDataDisplay((uint8_t)dataTemp);
 						}	
 
-						rgbLightValue.RGB_RCompare = 0xff;
-						rgbLightValue.RGB_GCompare = 0xff;
+						rgbLightValue.RGB_RCompare = 0x4C;
+						rgbLightValue.RGB_GCompare = 0x99;
 						rgbLightValue.RGB_BCompare = 0;
 						break;
 					default:
@@ -474,46 +494,56 @@ void TestModeLedIndication(void)
 						case LED_DIS_ON:
 							dataTemp = 0xff;
 							LedDataDisplay((uint8_t)dataTemp);
+							POWER_LED_ON();	
+						rgbLightValue.RGB_RCompare = 0x00;
+						rgbLightValue.RGB_GCompare = 0x00;
+					    rgbLightValue.RGB_BCompare = 0x00;
+					    rgbLightValue.FilterCompare = 0x00;
 						break;
 						case LED_DIS_OFF:
 							dataTemp = 0x00;
 							LedDataDisplay((uint8_t)dataTemp);
-						break;
-						case LED_DIS_STA1:
+							POWER_LED_OFF();					
+						rgbLightValue.RGB_RCompare = 0x00;
+						rgbLightValue.RGB_GCompare = 0x00;
 					    rgbLightValue.RGB_BCompare = 0x00;
-					    rgbLightValue.RGB_GCompare = 0x00;
-					    rgbLightValue.RGB_RCompare = 0xff;
-					    rgbLightValue.FilterCompare = 0xff;							
+					    rgbLightValue.FilterCompare = 0x00;
+						break;
+						case LED_DIS_STA1:											    
+						rgbLightValue.RGB_RCompare = 0x66;
+						rgbLightValue.RGB_GCompare = 0x00;
+					  rgbLightValue.RGB_BCompare = 0x00;
+					    rgbLightValue.FilterCompare = 0xcc;							
 						break;
 						case LED_DIS_STA2:
+							rgbLightValue.RGB_RCompare = 0x00;
+						  rgbLightValue.RGB_GCompare = 0x9a;
 					    rgbLightValue.RGB_BCompare = 0x00;
-					    rgbLightValue.RGB_GCompare = 0xff;
-					    rgbLightValue.RGB_RCompare = 0x00;
 					    rgbLightValue.FilterCompare = 0x00;							
 						break;
 						case LED_DIS_STA3:
-					    rgbLightValue.RGB_BCompare = 0xff;
-					    rgbLightValue.RGB_GCompare = 0x00;
-					    rgbLightValue.RGB_RCompare = 0x00;
-					    rgbLightValue.FilterCompare = 0xff;
+							rgbLightValue.RGB_RCompare = 0x00;
+						  rgbLightValue.RGB_GCompare = 0x00;
+					    rgbLightValue.RGB_BCompare = 0x9a;
+					    rgbLightValue.FilterCompare = 0xcc;
 						break;
 						case LED_DIS_STA4:
-						rgbLightValue.RGB_BCompare = 0x00;
-					    rgbLightValue.RGB_GCompare = 0x7f;
-					    rgbLightValue.RGB_RCompare = 0xff;
-					    rgbLightValue.FilterCompare = 0xff;
-						break;
-					    case LED_DIS_STA5:
-						rgbLightValue.RGB_BCompare = 0x3f;
-					    rgbLightValue.RGB_GCompare = 0x7f;
-					    rgbLightValue.RGB_RCompare = 0x00;
+						rgbLightValue.RGB_RCompare = 0x00;
+						rgbLightValue.RGB_GCompare = 0x15;
+						rgbLightValue.RGB_BCompare = 0x9a;
 					    rgbLightValue.FilterCompare = 0x00;
 						break;
+					    case LED_DIS_STA5:
+						rgbLightValue.RGB_RCompare = 0x66;                    
+							rgbLightValue.RGB_GCompare = 0x9a;
+						rgbLightValue.RGB_BCompare = 0x00;
+					    rgbLightValue.FilterCompare = 0xcc;
+						break;
 						case LED_DIS_STA6:
-						rgbLightValue.RGB_BCompare = 0xff;
-					    rgbLightValue.RGB_GCompare = 0x1f;
-					    rgbLightValue.RGB_RCompare = 0x00;
-					    rgbLightValue.FilterCompare = 0xff;							
+						rgbLightValue.RGB_RCompare = 0x66;
+						rgbLightValue.RGB_GCompare = 0x30;
+						rgbLightValue.RGB_BCompare = 0x00;
+					    rgbLightValue.FilterCompare = 0x00;							
 						break;
 					default:
 					break;
@@ -522,8 +552,19 @@ void TestModeLedIndication(void)
 					WIFI_LED_ON();
 				break;
 				case TEST_TAKE_FACORY:
-					//ReadGlobalParameter();
-					//SaveGlobalParameter();
+					intervalCnt++;
+					if(intervalCnt == 50)
+					{
+					    LedDataDisplay(0);
+						rgbLightValue.RGB_BCompare = 0x00;
+						POWER_LED_OFF();
+					}else if(intervalCnt == 100)
+					{
+						intervalCnt = 0;
+						LedDataDisplay(0xff);
+						rgbLightValue.RGB_BCompare = 0xcc;
+						POWER_LED_ON();
+					}
 					FILTER_LED_ON();
 					WIFI_LED_ON();
 				break;

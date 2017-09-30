@@ -3,6 +3,9 @@
 #include "hdc1080.h"
 #include "pms7003i.h"
 
+uint16_t pulseNumber = 0;
+uint16_t pulseNumberTmp;
+uint16_t scanTimer = 0;
 
 void InputHardwareInit(void)
 {
@@ -12,6 +15,7 @@ DeviceAdcInit();
 LightLumiGpioInit();
 SensorI2CGpio_Init();
 KeyTimerInit();
+FanSpdScanGpioInit();
 }
 
 
@@ -119,6 +123,30 @@ void KeyTimerInit(void)
 }
 
 
+void FanSpdScanGpioInit(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	EXTI_InitTypeDef EXTI_InitStrucuture;
+	NVIC_InitTypeDef NVIC_InitStructure;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA,&GPIO_InitStructure);
+
+	EXTI_InitStrucuture.EXTI_Line = EXTI_Line11;
+	EXTI_InitStrucuture.EXTI_LineCmd = ENABLE;
+	EXTI_InitStrucuture.EXTI_Mode = EXTI_Mode_Interrupt;
+	EXTI_InitStrucuture.EXTI_Trigger = EXTI_Trigger_Falling;
+	EXTI_Init(&EXTI_InitStrucuture);
+
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI4_15_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_InitStructure.NVIC_IRQChannelPriority = 2;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+
 extern void KeyProcess(void);
 void TIM6_IRQHandler(void)
 {
@@ -126,7 +154,35 @@ void TIM6_IRQHandler(void)
 	{
 		TIM_ClearITPendingBit(TIM6,TIM_IT_Update);
 		KeyProcess();
+		scanTimer++;
+		if(scanTimer == 100)// 1second
+		{
+			scanTimer = 0;
+			pulseNumberTmp = pulseNumber;
+			pulseNumber = 0;
+		}
 	}
+}
+
+
+
+void EXTI4_15_IRQHandler(void)
+{
+  if(EXTI_GetITStatus(EXTI_Line11) != RESET)
+  {
+  	EXTI_ClearITPendingBit(EXTI_Line11);
+  	pulseNumber++;
+//	if(pulseNumber == 1)
+//		scanTimer = 0;
+	
+  } 
+}
+
+
+uint16_t GetFanFreq(void)
+{
+	return pulseNumberTmp;
+
 }
 
 uint16_t GetDustSensorRawData(void)
@@ -179,7 +235,7 @@ void SensorI2CGpio_Init(void)
 	I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
 	I2C_InitStructure.I2C_DigitalFilter = 0x00;
 	I2C_InitStructure.I2C_Mode = I2C_Mode_I2C;
-	I2C_InitStructure.I2C_Timing = 0x20D22E37;
+	I2C_InitStructure.I2C_Timing = 0x20D25050;
 	//I2C_InitStructure.I2C_OwnAddress1 = 0x00;
 	I2C_Init(I2C2,&I2C_InitStructure);
 	I2C_Cmd(I2C2,ENABLE);

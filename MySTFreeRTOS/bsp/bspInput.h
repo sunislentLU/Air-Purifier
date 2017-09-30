@@ -62,6 +62,8 @@ uint16_t GetLumiAdcValue(void);
 uint16_t GetGasAdcValue(void);
 void SensorI2CGpio_Init(void);
 void KeyTimerInit(void);
+void FanSpdScanGpioInit(void);
+uint16_t GetFanFreq(void);
 #endif
 
 

@@ -31,8 +31,10 @@ void OutputHardwareInit(void)
 	FanTimerInit(); 
 	RGBLightTimer_Init();
 	TimerNvicInit();
-	if((*GetDustSen()) == 0x02)
-	DebugUartInit();
+#ifndef FOR_JP
+  // if((*GetDustSen()) == 0x02)
+	//DebugUartInit();
+#endif
 
 
 
@@ -57,15 +59,20 @@ void BuzzerGpioInit(void)
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
  GPIO_Init(GPIOB, &GPIO_InitStructre);
  GPIO_PinAFConfig(GPIOB,GPIO_PinSource14,GPIO_AF_1);
-if((*GetDustSen()) == 0x01)
-{
+ #ifndef FOR_JP
+//if((*GetDustSen()) == 0x01)
+//{
+#endif
  GPIO_InitStructre.GPIO_Mode = GPIO_Mode_OUT;
  GPIO_InitStructre.GPIO_OType = GPIO_OType_PP;
  GPIO_InitStructre.GPIO_Pin  = GPIO_Pin_9;
  GPIO_InitStructre.GPIO_PuPd = GPIO_PuPd_UP;
  GPIO_InitStructre.GPIO_Speed = GPIO_Speed_10MHz;
  GPIO_Init(GPIOA, &GPIO_InitStructre);
-}
+ BuzzerOnOff(DISABLE);
+#ifndef FOR_JP
+//}
+#endif
 }
 
 void DebugUartInit(void)
@@ -222,22 +229,15 @@ void FanTimerInit(void)
 	TIM_OCInitstructure.TIM_OCPolarity = TIM_OCPolarity_Low;
 	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCPolarity_High;
 	TIM_OC1Init(TIM1, &TIM_OCInitstructure);
-	TIM_OC1PreloadConfig(TIM1,TIM_OCPreload_Disable);
+	TIM_OC1PreloadConfig(TIM1,TIM_OCPreload_Enable);
 	TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
-	/*
-	input capture 
-	*/
-	TIM_ICInitstructure.TIM_Channel = TIM_Channel_4;
-	TIM_ICInitstructure.TIM_ICFilter = 0x00;
-	TIM_ICInitstructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
-	TIM_ICInitstructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-	TIM_ICInitstructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
-	TIM_ICInit(TIM1, &TIM_ICInitstructure);
-	TIM_CCxCmd(TIM1,TIM_Channel_4,ENABLE);
 	TIM_CtrlPWMOutputs(TIM1,ENABLE);
-	TIM_ITConfig(TIM1,TIM_IT_CC1|TIM_IT_CC4,ENABLE);
+	//FanTimerStart();
 	FanTimerCounterStop();
 }
+
+
+
 
 uint16_t buzzPeriod = BUZZER_PERIOD;//48 000/6000 = 8KHz /2 =4KHz
 void BuzzLightTimerInit(void)
@@ -253,15 +253,19 @@ void BuzzLightTimerInit(void)
 	TIM_TimebaseInitStructure.TIM_Prescaler = 0;
 	TIM_TimebaseInitStructure.TIM_RepetitionCounter = 0;  	
 	TIM_TimeBaseInit(TIM15,&TIM_TimebaseInitStructure);
-    if((*GetDustSen()) == 0x01)
-    {
+#ifndef FOR_JP
+  // if((*GetDustSen()) == 0x01)
+   // {
+#endif
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_Toggle;
 	TIM_OCInitstructure.TIM_Pulse = buzzPeriod;
 	TIM_OCInitstructure.TIM_OutputState = TIM_OutputState_Enable;
 	TIM_OCInitstructure.TIM_OCIdleState = TIM_OCIdleState_Set;
 	TIM_OC1Init(TIM15, &TIM_OCInitstructure);
 	TIM_OC1PreloadConfig(TIM15,TIM_OCPreload_Disable);
-    }
+#ifndef FOR_JP
+  //  }
+#endif
 	tmp = rgbLightValue.FilterCompare;
 	tmp <<=8;
 	TIM_OCInitstructure.TIM_OCMode = TIM_OCMode_PWM2;
@@ -323,10 +327,10 @@ void TimerNvicInit(void)
  NVIC_InitStructure.NVIC_IRQChannelPriority = 5;
  NVIC_Init(&NVIC_InitStructure);
 
- NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
- NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
- NVIC_InitStructure.NVIC_IRQChannelPriority = 2;
- NVIC_Init(&NVIC_InitStructure);
+// NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
+// NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+// NVIC_InitStructure.NVIC_IRQChannelPriority = 2;
+// NVIC_Init(&NVIC_InitStructure);
 }
 
 
@@ -364,7 +368,7 @@ void TIM1_CC_IRQHandler(void)
 	   TIM_SetCompare1(TIM1,fanCurCnt);
 	}
 
-	if(TIM_GetITStatus(TIM1,TIM_IT_CC4))// input capture
+	/*if(TIM_GetITStatus(TIM1,TIM_IT_CC4))// input capture
 	{
 		TIM_ClearITPendingBit(TIM1,TIM_IT_CC4);
 		if(captureStatus == 0)
@@ -380,7 +384,7 @@ void TIM1_CC_IRQHandler(void)
 				fanSpdPeriod = (captureHigh+FAN_PERIOD_MAXCOUNT) - captureLow;
             captureStatus = 0;
 		}
-	}
+	}*/
 }
 
 
@@ -406,23 +410,27 @@ if(TIM_GetITStatus(TIM15,TIM_IT_CC1) == SET)
 
 }
 
+
+void ChangeTimerPeriod(uint16_t period)
+{
+	TIM_TimeBaseInitTypeDef TIM_TimebaseInitStructure;
+	TIM_TimeBaseStructInit(&TIM_TimebaseInitStructure);
+	TIM_TimebaseInitStructure.TIM_ClockDivision = 0;
+	TIM_TimebaseInitStructure.TIM_CounterMode =  TIM_CounterMode_Up;
+	TIM_TimebaseInitStructure.TIM_Period = period - 1;// 1Hz 最小频率
+	TIM_TimebaseInitStructure.TIM_Prescaler = FAN_PERIOD_PRESCALE;// 最大频率 10KHz  
+	TIM_TimebaseInitStructure.TIM_RepetitionCounter = 0;  	
+	TIM_TimeBaseInit(TIM1,&TIM_TimebaseInitStructure);
+	TIM_SetCompare1(TIM1,(period/2)-1);
+}
 void ChangeFanPeriod(uint16_t freq)
 {
 	fanPeriod = freq;
-
-	if(freq == FAN_PERIOD_MAXCOUNT)
-	{
-		FanTimerCounterStop();
-	}
-	else if((TIM1->CCER&0x0001) == 0)// the 12th bit is channel 4 output enable control bit 
-	{
-		FanTimerStart();
-	}
+    ChangeTimerPeriod(freq);
 }
 
 void FanTimerCounterStop(void)
 {
-	TIM_SetCompare1(TIM1,fanPeriod);
 	TIM_SetCounter(TIM1,0x0000);
 	TIM_CCxCmd(TIM1,TIM_Channel_1,DISABLE);
 	TIM_Cmd(TIM1,DISABLE);
@@ -430,11 +438,9 @@ void FanTimerCounterStop(void)
 
 void FanTimerStart(void)
 {
-  TIM_SetCompare1(TIM1,fanPeriod);
 	TIM_SetCounter(TIM1,0x0000);
 	TIM_CCxCmd(TIM1,TIM_Channel_1,ENABLE);
-	TIM_Cmd(TIM1,ENABLE);
-	
+	TIM_Cmd(TIM1,ENABLE);	
 }
 
 

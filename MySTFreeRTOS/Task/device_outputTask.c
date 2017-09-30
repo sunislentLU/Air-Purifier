@@ -17,7 +17,8 @@ extern uint16_t GetRGBCurrentCompare_G(void);
 extern uint16_t GetRGBCurrentCompare_B(void);
 extern uint16_t GetLightCurrentCompare(void);
 extern void OutputTestHandle(void);
-
+extern void FanTimerCounterStop(void);
+extern void FanTimerStart(void);
 
 uint8_t GetTestModeFlag(void);
 void LedOffAll(void);
@@ -34,6 +35,12 @@ void SetAllLedPowerOff(void);
 void SetAllLedPowerOn(void);
 void PowerOffDisplay(void);
 void PowerOnDisplay(void);
+void OprationIndLedsOn(void);
+void OprationIndLedsOff(void);
+void MotorPowerProcess(void);
+#ifndef FOR_JP
+extern uint8_t GetWifiRstFlag(void);
+#endif
 /*********Variables*****/
 extern xTaskHandle deviceOutputTask;
 xQueueHandle outputMsgQueue;
@@ -41,16 +48,26 @@ _sOUTPUT_MSG* outputMsg;
 _sOUTPUT_VAR outputVariable;
 _sLOOPTIMER* buzLedTimer;
 extern _sRGBLIGHT rgbLightValue;
+uint8_t 	ledStandbyFlag = 1;
 
-const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x3f,0xff,0xff,0xff},
-	                             {0xff,0xff,0x00,0xff,0xff},{0xef,0x3f,0x00,0xff,0xff}};
+//_sLightAdj ledAdj;
+//uint8_t ledDeltaCnt;
+//uint16_t brightnessTmp;
+//const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x3f,0xff,0xff,0xff},
+//	                             {0xff,0xff,0x00,0xff,0xff},{0xef,0x3f,0x00,0xff,0xff}};
+//								 
+//const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x26,0x9a,0xCC,0xCC},
+//	                             {0x4d,0x9a,0x00,0xCC,0xCC},{0x48,0x26,0x00,0xCC,0xCC}};
+
+const _sRGBLIGHT rgbValueRef[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x15,0x9a,0xCC,0x9a},
+	                             {0x66,0x9a,0x00,0xCC,0x9a},{0x66,0x22,0x00,0xCC,0x9a}};															 								 
 const _sRGBLIGHT rgbValueRefDark[4]={{0x00,0x00,0x00,0x00,0x00},{0x00,0x04,0x10,0x10,0x10},
-	                             {0x10,0x10,0x00,0x10,0x10},{0x0f,0x04,0x00,0x10,0x10}};
+	                             {0x08,0x10,0x00,0x10,0x10},{0x0f,0x04,0x00,0x10,0x10}};
 
 const uint32_t RGBLightRegister[5]={(TIM3_BASE+0x34),(TIM3_BASE+0x38),(TIM3_BASE+0x3C),(TIM3_BASE+0x40),(TIM15_BASE + 0x38)};
-const uint16_t RGBFadeStep[3][5] = {{0xfff,0x3ff,0xfff,0xfff,0xfff},
-                                    {0xfff,0xfff,0xfff,0xfff,0xfff},
-                                    {0xeff,0x3ff,0xfff,0xfff,0xfff}};
+const uint16_t RGBFadeStep[3][5] = {{0xfff,0x15f,0x9af,0xfff,0xfff},
+                                    {0x66f,0x9af,0xfff,0xfff,0xfff},
+                                    {0x66f,0x22f,0xfff,0xfff,0xfff}};
 /****************
 * Function Name:      DeviceOutputTask
 * Description:        hardware interface control setting  
@@ -61,15 +78,16 @@ const uint16_t RGBFadeStep[3][5] = {{0xfff,0x3ff,0xfff,0xfff,0xfff},
 *author:              CTK  luxq
 ********************************/
 																		   
-//uint8_t mode;
-																		
+uint8_t MotorDelayTime;
+
 void DeviceOutputTask(void* arg)
 {
 	uint16_t dataTmp;
    OutputHardwareInit();
    PowerOnDisplay();
-   vTaskDelay(500);
+   vTaskDelay(1500);
    PowerOffDisplay();
+	outputVariable.light = 1;
 for(;;)
 {
 	if(GetTestModeFlag())
@@ -79,10 +97,17 @@ for(;;)
 	}
   else
 	{		
-		if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg 
+	if(xQueueReceive(outputMsgQueue, outputMsg, 10))// receive a msg 
     {
      switch(outputMsg->outputMsg)
      {
+	 	     
+			 case OUTPUT_MSG_LEDSON:
+			 	 OprationIndLedsOn();
+			 	break;
+			 	case OUTPUT_MSG_LEDSOFF:
+			 	 OprationIndLedsOff();
+			 	break;
 			 case OUTPUT_MSG_MODE:
 		   	if(outputMsg->paramType != MSG_PARAM_UCHAR)// message's parameter type error
 		   	{
@@ -90,13 +115,9 @@ for(;;)
 			}else
 			{
 				dataTmp = *((uint8_t*)outputMsg->outputMsgParam);
-				//if(mode >= MODE_TEST)
-				//{
-					//SetAllLedPowerOn();
-				//	rgbLightValue.LuminCompare = 0x7f;
-				//	SetTestSpdType(mode);
-
-				//}else
+				outputVariable.mode = dataTmp;
+				if(outputVariable.mode == MODE_STANDBY)//上一个状态是关机		
+					MotorDelayTime = 100;
 				SetMode((_eMODE)dataTmp);
 			}
 		   	break;           
@@ -104,30 +125,41 @@ for(;;)
 			 	dataTmp = *((uint16_t*)outputMsg->outputMsgParam);
 				if(dataTmp >=DEFAULT_LUMIN_LIGHT)
 				{
-					SetLightBrightness(rgbValueRef[1].LuminCompare);
+					if(outputVariable.light == LIGHT_BRIGHT)
+					{
+					memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
 					rgbLightValue.FilterCompare = rgbValueRef[1].FilterCompare;
-					outputVariable.light = LIGHT_BRIGHT;
-					memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));				
+					}
+					//outputVariable.light = LIGHT_BRIGHT;
+						
+					SetLightBrightness(rgbValueRef[1].LuminCompare);
 				}
 				else if(dataTmp <= DEFAULT_LUMIN_DARK)
 				{
-					outputVariable.light = LIGHT_DARK;
+					//outputVariable.light = LIGHT_DARK;
+					if(outputVariable.light == LIGHT_BRIGHT)
+					{
+					  rgbLightValue.FilterCompare = rgbValueRefDark[1].FilterCompare;
+					  memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+					}
 					SetLightBrightness(rgbValueRefDark[1].LuminCompare);
-					rgbLightValue.FilterCompare = rgbValueRefDark[1].FilterCompare;
-					memcpy(&rgbLightValue,&rgbValueRefDark[outputVariable.aqiLevel+1],(sizeof(_sRGBLIGHT)-2));
+					
 				}
 		   	break;
 		   case OUTPUT_MSG_BLUELED:
+		   	  outputVariable.light = *((uint8_t*)outputMsg->outputMsgParam);
 				SetBlueLed(*((uint8_t*)outputMsg->outputMsgParam));
 		   	break;
 		   case OUTPUT_MSG_BUZZ_KEY:
 		   case OUTPUT_MSG_BUZZ_CONF:
 		   case OUTPUT_MSG_BUZZ_WARN:
+#ifdef BUZ_TEST
 			 case OUTPUT_MSG_BUZ_TST1:
 			 case OUTPUT_MSG_BUZ_TST2:
 			 case OUTPUT_MSG_BUZ_TST3:	
 			 case OUTPUT_MSG_BUZ_TST4:
 			 case OUTPUT_MSG_BUZ_TST5:
+#endif
 				 SetBuzzer(outputMsg->outputMsg - OUTPUT_MSG_BUZZ_KEY +1);
 		   	break;
 		   case OUTPUT_MSG_SPEED:
@@ -215,16 +247,21 @@ void OutputVariablesInit(void)
 	freq = spd>>1;// 15 pulse per round
 	if(freq == 0)
 	{
+    period = FAN_PERIOD_MAXCOUNT -1;
 	MotorPowerCtrl(OFF);
-    period = FAN_PERIOD_MAXCOUNT;
+	ChangeFanPeriod(period);
+	//MotorPowerCtrl(OFF);
+	FanTimerCounterStop();
 	}
 	else
 	{
-	MotorPowerCtrl(ON);
 	tmp1 = ((FAN_PERIOD_COUNT*1.0)/freq);
 	period = (uint16_t)tmp1;//((FAN_PERIOD_MAXCOUNT)/freq);
-	}
 	ChangeFanPeriod(period);
+	//MotorPowerCtrl(ON);
+	FanTimerStart();
+	}
+	
 }
 /****************
 * Function Name:      SetModeLed
@@ -270,31 +307,6 @@ static void SetModeLed(uint8_t mode)
   	HIGH_LED_ON();
 	  POWER_LED_ON();
   	break;
-	case TEST_LED_SOFT:
-		break;
-	case 	TEST_LED_WKT:
-		break;
-	case TEST_LED_FILT:
-		break;	
-	case TEST_LED_SEN:
-		break;
-	case TEST_LED_KEY:
-		break;
-	case TEST_LED_PARAM:
-	break;		
-	case TEST_LED_SPDLOW:
-		LedOffAll();
-		break;
-	case TEST_LED_SPDHIGH:
-		break;
-	case TEST_LED_SPDALOW:
-		break;
-	case TEST_LED_SPDAMED:
-		break;
-	case TEST_LED_SPDAHIGH:
-		break;
-	case TEST_LED_SPDFAST:
-		break;
   default:
   	break;
   }
@@ -333,14 +345,10 @@ void SetAllLedPowerOff(void)
 {			
 	memcpy(&rgbLightValue,&rgbValueRef[0],sizeof(_sRGBLIGHT));
 }
-
-
 void SetAllLedPowerOn(void)
 {			
-	memcpy(&rgbLightValue,&rgbValueRef[1],sizeof(_sRGBLIGHT));
+	memcpy(&rgbLightValue,&rgbValueRef[outputVariable.aqiLevel+1],sizeof(_sRGBLIGHT));
 }
-
-
 
 
 /****************
@@ -352,7 +360,7 @@ void SetAllLedPowerOn(void)
 * Date:               20170502
 *author:              CTK  luxq
 ********************************/
-uint8_t 	ledStandbyFlag = 1;
+
 static void SetMode(uint8_t mode)
 {  
 	SetModeLed(mode); 
@@ -399,9 +407,21 @@ static void SetLightBrightness(uint16_t brightness)
 void SetBlueLed(uint8_t op)
 {
 	if(op == 1)  
-		SetAllLedPowerOn();	
-	else	
-		SetAllLedPowerOff();	
+	{
+		//SetAllLedPowerOn();
+		rgbLightValue.FilterCompare = rgbValueRef[outputVariable.aqiLevel+1].FilterCompare;
+		rgbLightValue.RGB_RCompare= rgbValueRef[outputVariable.aqiLevel+1].RGB_RCompare;
+		rgbLightValue.RGB_GCompare= rgbValueRef[outputVariable.aqiLevel+1].RGB_GCompare;
+		rgbLightValue.RGB_BCompare= rgbValueRef[outputVariable.aqiLevel+1].RGB_BCompare;
+		
+	}
+	else
+	{
+		rgbLightValue.FilterCompare = rgbValueRef[0].FilterCompare;
+		rgbLightValue.RGB_RCompare= rgbValueRef[0].RGB_RCompare;
+		rgbLightValue.RGB_GCompare= rgbValueRef[0].RGB_GCompare;
+		rgbLightValue.RGB_BCompare= rgbValueRef[0].RGB_BCompare;	
+	}
 }
 
 /****************
@@ -447,9 +467,6 @@ void BuzzerLedTimer(void)
 			if(buzCnt == 0)
 			{
 			buzTypeTmp = outputVariable.buzType;
-				#ifdef BUZ_TEST
-			buzRepeatCnt = 0;
-				#endif
 			}
 		}
 		switch(buzTypeTmp)
@@ -510,110 +527,34 @@ void BuzzerLedTimer(void)
 			}    
 			buzCnt++;
 			break;
-#ifdef BUZ_TEST
-		case BUZ_TYPE_TEST1:
-			if(buzCnt==0)
-				BuzzerOnOff(ON);
-			if(buzCnt == 4)
-			{
-				BuzzerOnOff(OFF);
-				outputVariable.buzType = BUZ_TYPE_NONE;
-				buzCnt = 0;
-				break;
-			}
-			buzCnt++;
-			break;
-		case BUZ_TYPE_TEST2:
-			if(buzCnt==0)
-				BuzzerOnOff(ON);
-			if(buzCnt == 4)
-			   BuzzerOnOff(OFF);
-			if(buzCnt == 9)
-				BuzzerOnOff(ON);
-			if(buzCnt == 14)
-			{
-				BuzzerOnOff(OFF);
-				outputVariable.buzType = BUZ_TYPE_NONE;
-				buzCnt = 0;
-				break;
-			}
-			buzCnt++;
-			break;
-		case BUZ_TYPE_TEST3:
-			if(buzCnt==0)
-				BuzzerOnOff(ON);
-			if(buzCnt == 49)
-			{
-				BuzzerOnOff(OFF);
-				outputVariable.buzType = BUZ_TYPE_NONE;
-				buzCnt = 0;
-				break;
-			}
-			buzCnt++;
-			break;
-		case BUZ_TYPE_TEST4:
-			if(buzCnt==0)
-				BuzzerOnOff(ON);
-			if(buzCnt == 4)
-				BuzzerOnOff(OFF);
-			if(buzCnt == 9)
-				BuzzerOnOff(ON);
-			if(buzCnt == 14)
-				BuzzerOnOff(OFF);
-			if(buzCnt == 49)
-			{
-				BuzzerOnOff(OFF);
-				buzRepeatCnt ++;
-				if(buzRepeatCnt >=5)
-				{
-				buzRepeatCnt = 0;
-				outputVariable.buzType = BUZ_TYPE_NONE;
-				
-				}
-				buzCnt = 0;
-				break;
-				
-			}
-			buzCnt++;
-			break;			
-		case BUZ_TYPE_TEST5:
-			if(buzCnt==0)
-				BuzzerOnOff(ON);
-			if(buzCnt == 4)
-				BuzzerOnOff(OFF);
-			if(buzCnt == 9)
-				BuzzerOnOff(ON);
-			if(buzCnt == 14)
-				BuzzerOnOff(OFF);
-			if(buzCnt == 49)
-			{
-				BuzzerOnOff(OFF);
-//				buzRepeatCnt ++;
-//				if(buzRepeatCnt =5)
-//				outputVariable.buzType = BUZ_TYPE_NONE;
-				buzCnt = 0;
-				break;
-			}
-			buzCnt++;
-			break;
-#endif
 		default:
 			break;
 		}
-    if(GetTestModeFlag() == 0)
+#ifndef FOR_JP
+    if((GetTestModeFlag() == 0)&&(GetWifiRstFlag() == 0))
 		{
+
 		switch(outputVariable.wifiLedType)
 		{
 		case WIFILED_UCON:
-           if(ledCnt == 0)
-		   	WIFI_LED_ON();
-		   if(ledCnt == 5)
-		   	WIFI_LED_OFF();
+		case WIFI_OFFLINE:
+		if(ledCnt == 0)		   	
+			WIFI_LED_ON(); 
+		if(ledCnt == 5)
+			WIFI_LED_OFF();
 			ledCnt++;
-			if(ledCnt == 50)
-				ledCnt = 0;
+		if(ledCnt == 55)
+			ledCnt = 0;
 			break;
 		case WIFILED_ROUTER:
+			if(ledCnt == 0)
+		   	WIFI_LED_ON();
+		   if(ledCnt == 25)
+		   	WIFI_LED_OFF();
+			ledCnt++;
+			if(ledCnt == 100)
+				ledCnt = 0;
+			break;
 		case WIFILED_CLOUD:
 			WIFI_LED_ON();
 			break;
@@ -625,11 +566,14 @@ void BuzzerLedTimer(void)
 			 	 ledCnt++;
 		   if(ledCnt >= 10)
 		   	ledCnt = 0;
-		
 			break;
 		default:
 			break;
 		}
+#else
+    if(GetTestModeFlag() == 0)
+    {
+#endif
 		switch(outputVariable.filter)
 		{
 			case FILTER_LED_NORMAL:
@@ -638,18 +582,15 @@ void BuzzerLedTimer(void)
 			case FILTER_LED_CLR:
 				if(filterLedCnt == 0)
 					FILTER_LED_ON();
-				else if(filterLedCnt == 5)
+				else if(filterLedCnt == 25)
 					FILTER_LED_OFF();
-				if(filterLedCnt >= 10)
-				filterLedCnt++;				
+				filterLedCnt++;		
+				if(filterLedCnt >= 50)
+					 filterLedCnt = 0;
+						
 				break;
 			case FILTER_LED_WARN:
-				if(filterLedCnt == 0)
 					FILTER_LED_ON();
-				else if(filterLedCnt == 10)
-					FILTER_LED_OFF();
-				if(filterLedCnt >= 20)
-				filterLedCnt++;	
 				break;
 
 
@@ -660,12 +601,20 @@ void BuzzerLedTimer(void)
 		
 	}
 		RgbLightFade();
-}
-	
-	
+		MotorPowerProcess();
+}		
 }
 
+void MotorPowerProcess(void)
+{
+	if(MotorDelayTime!=0)	
+		MotorDelayTime--;
+	else if(outputVariable.mode!=MODE_STANDBY)
+		MotorPowerCtrl(ON);
 
+}
+
+//_eBOOL ledFlag = FALSE;
 void RgbLightFade(void)
 {
 	uint16_t currentCC;
@@ -679,29 +628,50 @@ void RgbLightFade(void)
 	{
 		currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
 		tmp = *(rgbData+i);
+		if((i == 4)||(i == 3) )
+		  tmp <<= 8;	
+		else
 		tmp <<=7;
+
 	if(currentCC != tmp)
 	{
 		if(currentCC>tmp)
 		{
 			tmp2 = RGBFadeStep[j][i];
-			tmp2>>=3;
+			if((i == 4)||(i == 3) )
+				tmp2>>=2;
+			else if(GetTestModeFlag())
+				tmp2 = tmp2;
+			else
+			   tmp2>>=3;
 			if(currentCC<tmp2)
 				currentCC = tmp;
 			else
 			currentCC -= tmp2;
 			if(currentCC<=(tmp))
+			{
 				currentCC = (tmp);
+
+			}
 		}else 
 		{
 			tmp2 = RGBFadeStep[j][i];
-			tmp2>>=3;
+			if((i == 4)||(i == 3) )
+				tmp2>>=2;
+			else if(GetTestModeFlag())
+				tmp2 = tmp2;
+			else
+			    tmp2>>=3;
 			if(currentCC>(0xffff - tmp2))
 				currentCC = (tmp);
 			else
 			currentCC += tmp2;
 			if(currentCC>=tmp)
+			{
 				currentCC = tmp;
+		//		if((i == 4)&&(tmp >= 0xcc00))
+		//		ledFlag = TRUE;
+			}
 		}
 		*((uint32_t*)RGBLightRegister[i])= currentCC;
 	}
@@ -710,6 +680,9 @@ void RgbLightFade(void)
 	{
 		tmp = *(rgbData+i);
 		tmp <<=7;
+//		if(i==4)
+//			tmp <<=8;
+			
 		for(i=0;i<5;i++)
 		{
 			currentCC = (*((uint32_t*)RGBLightRegister[i]))&0x0000ffff;
@@ -723,6 +696,7 @@ void RgbLightFade(void)
 				TIM2_LED_OFF();
 				TIM3_LED_OFF();
 				WIFI_LED_OFF();
+				//ledFlag = FALSE;
 		}
 	
 	}
@@ -742,9 +716,11 @@ void PowerOnDisplay(void)
 TIM1_LED_ON();
 TIM2_LED_ON();
 TIM3_LED_ON();
-WIFI_LED_ON();
-*((uint32_t*)RGBLightRegister[3])= 0x0FFF;
-*((uint32_t*)RGBLightRegister[4])= 0x0FFF;
+//WIFI_LED_ON();
+FILTER_LED_ON();
+*((uint32_t*)RGBLightRegister[3])= 0x3FFF;
+*((uint32_t*)RGBLightRegister[4])= 0x3FFF;
+*((uint32_t*)RGBLightRegister[2])= 0x3FFF;
 }
 
 void PowerOffDisplay(void)
@@ -759,9 +735,47 @@ TIM1_LED_OFF();
 TIM2_LED_OFF();
 TIM3_LED_OFF();
 WIFI_LED_OFF();
+FILTER_LED_OFF();
 *((uint32_t*)RGBLightRegister[3])= 0;
 *((uint32_t*)RGBLightRegister[4])= 0;
+*((uint32_t*)RGBLightRegister[2])= 0;
 }
+
+void OprationIndLedsOn(void)
+{
+ POWER_LED_ON();
+ AUTO_LED_ON();
+ FAST_LED_ON();
+ LOW_LED_ON();
+ MEDIUM_LED_ON();
+ HIGH_LED_ON();	
+TIM1_LED_ON();
+TIM2_LED_ON();
+TIM3_LED_ON();
+//WIFI_LED_ON();
+rgbLightValue.LuminCompare = 0xcc;
+}
+
+void OprationIndLedsOff(void)
+{
+ POWER_LED_OFF();
+ AUTO_LED_OFF();
+ FAST_LED_OFF();
+ LOW_LED_OFF();
+ MEDIUM_LED_OFF(); 
+ HIGH_LED_OFF();	
+TIM1_LED_OFF();
+TIM2_LED_OFF();
+TIM3_LED_OFF();
+//WIFI_LED_OFF();
+rgbLightValue.LuminCompare = 0x00;
+}
+
+//_eBOOL GetLedOnOffFlag(void)
+//{
+//	return ledFlag;
+
+//}
 
 
 

@@ -25,6 +25,7 @@ typedef enum
 {
 	WIFILED_UCON = 0x00,
 	WIFILED_ROUTER,
+	WIFI_OFFLINE,
 	WIFILED_CLOUD,
 	WIFILED_CONFIG
 }_eWIFILED;
@@ -52,6 +53,7 @@ typedef struct
 	uint8_t     aqiLevel;
 	uint8_t light;
 	uint8_t filter;
+	uint8_t mode;
 }_sOUTPUT_VAR;
 
 typedef enum

@@ -1,3 +1,4 @@
+#ifndef FOR_JP
 #include "wifiProtocol.h"
 #include "fifo.h"
 #include "stdio.h"
@@ -140,6 +141,14 @@ void SendCmd2WifiModule(unsigned char cmd,const _sWIFI_CMD_PROC cmdarray[],unsig
   
   pointer = databuff;
   command = cmd;
+	if(cmd == 0x05)
+	{
+	 command --;//= 0x05;
+		command++;
+		return ;
+		
+		
+	}
 	dataLen = 0;
   dataLen = cmdarray[command].length2*256+cmdarray[command].length1;
   if(dataLen <= 2) // command + datas +checksum  == 2 ;mean the command contain no data
@@ -176,7 +185,7 @@ void SendCmd2WifiModule(unsigned char cmd,const _sWIFI_CMD_PROC cmdarray[],unsig
   PushInFifo(sendfifo,END);
   CheckFifoSendFirstData(sendfifo);
 }
-
+#endif
 
 
 

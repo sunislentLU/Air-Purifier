@@ -12,7 +12,8 @@ typedef enum
 WIFI_START = 0x00,
 WIFI_CHK_NET , //检查网络窗台
 WIFI_VER_PID,        // 连接路由器以后验证产品 ID 和产品 KEY
-WIFI_NORMAL_OP       //验证 PID 和 KEY 以后开始正常控制
+WIFI_NORMAL_OP,       //验证 PID 和 KEY 以后开始正常控制
+WIFI_SMART_LINK
 }_eWIFI_PROCESS;
 
 

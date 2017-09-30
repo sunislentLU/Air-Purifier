@@ -117,6 +117,8 @@ unsigned char LuminCompare;
 unsigned char FilterCompare;
 }_sRGBLIGHT;
 
+
+
 unsigned char  GetBuzMotorOnOffStatus(void);
 unsigned char  GetBuzOnOffStatus(void);
 void BuzzerOnOff(unsigned char on);

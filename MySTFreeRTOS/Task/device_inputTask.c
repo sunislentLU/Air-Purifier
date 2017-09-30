@@ -7,33 +7,36 @@ extern uint16_t GetFanPeriod(void);
 extern uint8_t GetTempHumValue(uint16_t* temp,uint16_t* hum);
 extern void I2CSensorGenerateStop(void);
 void InputVariableInit(void);
-static void DustDensityProcess(void);
-//static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen);
-//static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
-//static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen);
+
  void KeyProcess(void);
 static void TopCoverProcess(void);
 static void BubbleSort(uint16_t*buffer,uint8_t length);
 //void DustBufferSort(uint16_t* buffer,uint8_t length);
 void GasDetection(void);
 void EnvironmentValueScanProcess(void);
-
 void LoopTimerInit(_sLOOPTIMER* timer,uint16_t interval);
 uint8_t CheckTickExpired(_sLOOPTIMER* timer);
 /*****************Variables********************************/
 _sINPUTVALUE* inputValue;// input task global variables struct 
 _sINPUT_MSG* inputMsg;// input messages struct 
 QueueHandle_t inputMsgQueue;// message queue use to send message to maintask from inputtask
-//SemaphoreHandle_t inputDustSem;// dust sensor have received a data
-//uint16_t dustValueBuf[INPUT_DUST_BUF_SIZE];// dust value buffer use to store dust value 
 uint16_t gasValueBuf[INPUT_GAS_BUF_SIZE];
 uint16_t luminValueBuf[INPUT_LUMI_BUF_SIZE];
 uint16_t speedValueBuf[INPUT_SPEED_BUF_SIZE];
+
+#ifndef FOR_JP
+static uint8_t dustSampleCnt = 0;
+static uint16_t dustSum = 0;
+static uint16_t dustSubSum = 0;
+static void DustDensityProcess(void);
+#endif
+
 
 _sLOOPTIMER* ms100Loop;
 _sLOOPTIMER* ms200Loop;
 
 extern xTaskHandle deviceInputTask;
+//extern uint8_t dustEnable;
 
 
 const _eINPUTMSG_TYPE key2Msgtab[][3]={{INPUT_MSG_KEY1_PRESS,INPUT_MSG_KEY1_LPRESS,INPUT_MSG_KEY1_HOLD},
@@ -128,62 +131,7 @@ static void TopCoverProcess(void)
 
 }
 
-/****************
 
-* Function Name:      DustDensityProcess
-* Description:        get dust raw data and sort caculate the average of payload 
-                      
-* Parameter:          none
-* return:             none
-* Date:               20170428
-*author:              CTK  luxq
-
-***************/
-extern uint8_t GetParticalDensity(uint16_t*pm25,uint16_t* pm100);
-static void DustDensityProcess(void)
-{
-  uint16_t dustValue = 0;
-	uint16_t dustSubValue = 0;
-//	static uint8_t dustCnt = 0;
-	//static uint16_t* pBuff = dustValueBuf;
-	//if(CheckTickExpired(inputSpeedLoop)== pdTRUE)// wait dust sensor receive data in 1 sencond 
-	//{				
-	//dustValue = GetDustSensorRawData();
-	if(GetParticalDensity(&dustValue,&dustSubValue) == 0)
-	{
-		inputValue->dustValue = dustValue;
-		inputMsg->inputMsg = INPUT_MSG_DUST;			
-		inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);			
-		inputMsg->paramType = MSG_PARAM_SHORT;
-		xQueueSend(inputMsgQueue, inputMsg, 0);
-		inputValue->dustSubValue = dustSubValue;
-		inputMsg->inputMsg = INPUT_MSG_DUST_SUB;			
-		inputMsg->inputMsgParam = (void*)&(inputValue->dustSubValue);			
-		inputMsg->paramType = MSG_PARAM_SHORT;
-		xQueueSend(inputMsgQueue, inputMsg, 0);
-	}else
-	{
-		I2CSensorGenerateStop();
-		inputMsg->inputMsg = INPUT_MSG_DFAULT;						
-		inputMsg->paramType = MSG_PARAM_NONE;
-		xQueueSend(inputMsgQueue, inputMsg, 0);
-	}
-	
-	
-//		//*pBuff = dustValue;
-//		//dustCnt++;
-//		//pBuff++;
-//		//if(dustCnt >= INPUT_DUST_BUF_SIZE)
-//		{           
-//			dustCnt = 0;
-//			pBuff = dustValueBuf;
-//			BubbleSort(pBuff,INPUT_DUST_BUF_SIZE);
-//			inputValue->dustValue = GetAverPayloadFromBuffer(dustValueBuf,INPUT_DUST_BUF_SIZE,INPUT_DUST_IGNORE_SIZE);
-//			memset(pBuff,0x00,INPUT_DUST_BUF_SIZE*2);
-//			
-//		}
-	//}
-}
 
 
 
@@ -192,7 +140,7 @@ static void SpeedScan(void)
   uint16_t speedValue;
 	static uint8_t speedCnt = 0;
 	static uint16_t* pBuff = speedValueBuf;
-		speedValue = GetFanPeriod();
+		speedValue = GetFanFreq();
 		*pBuff = speedValue;
 		speedCnt++;
 		pBuff++;
@@ -252,8 +200,6 @@ void LuminaceDetection(void)
 	uint16_t lumiValue;
 	static uint8_t lumiCnt = 0;
 	static uint16_t* pBuff = luminValueBuf;
-//	if(CheckTickExpired(inputlumiLoop))
-	//{
 		lumiValue = GetLumiAdcValue();
 		*pBuff = lumiValue;
 		pBuff++;
@@ -273,12 +219,9 @@ void LuminaceDetection(void)
 }
 
 
-
+#ifndef FOR_JP
 void TempHumiScan(void)
 {
-//	static uint8_t tempCnt = 0;
-//	static uint8_t humiCnt= 0;
-//	uint16_t* pBuff;
 	uint16_t humtmp,temptmp;
 	uint32_t tmp;
 	
@@ -290,20 +233,8 @@ void TempHumiScan(void)
 		xQueueSend(inputMsgQueue, inputMsg, 0);
 	}
 	else{
-//	tempValueBuf[tempCnt] = temptmp;
-//	humiValueBuf[humiCnt] = humtmp;
-//	tempCnt ++;   
-//  humiCnt ++;	
-//	if(tempCnt >= INPUT_TEMP_BUF_SIZE)     
-//	{			
-//		tempCnt = 0;
-//		pBuff = tempValueBuf;
-//		BubbleSort(pBuff,INPUT_TEMP_BUF_SIZE);
-//		tmp= GetAverPayloadFromBuffer(tempValueBuf,INPUT_TEMP_BUF_SIZE,INPUT_TEMP_IGNORE_SIZE);
-//		memset(pBuff,0,INPUT_TEMP_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_TEMP;
-		//tmp = inputValue->temp;
-	  tmp = temptmp;
+	    tmp = temptmp;
 		tmp*=165;
 		tmp>>=16;
 		tmp -= 40;
@@ -311,47 +242,77 @@ void TempHumiScan(void)
 		inputMsg->inputMsgParam = (void*)(&inputValue->temp);
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
-//	}
-//	if(humiCnt >= INPUT_HUMI_BUF_SIZE)
-//	{			
-//		humiCnt = 0;
-//		pBuff = humiValueBuf;
-//		BubbleSort(pBuff,INPUT_HUMI_BUF_SIZE);
-//		tmp= GetAverPayloadFromBuffer(humiValueBuf,INPUT_HUMI_BUF_SIZE,INPUT_HUMI_IGNORE_SIZE);
-    tmp = humtmp;
+        tmp = humtmp;
 		tmp *=100;
 		tmp>>=16;
 		inputValue->humi = tmp;//(tmp*100)/65536;
-//		memset(pBuff,0,INPUT_HUMI_BUF_SIZE*2);
 		inputMsg->inputMsg = INPUT_MSG_HUMI;
 		inputMsg->inputMsgParam = (void*)(&inputValue->humi);
 		inputMsg->paramType = MSG_PARAM_SHORT;
 		xQueueSend(inputMsgQueue, inputMsg, 0);
-//	}
 	}
 }
 
+/****************
 
+* Function Name:      DustDensityProcess
+* Description:        get dust raw data and sort caculate the average of payload 
+                      
+* Parameter:          none
+* return:             none
+* Date:               20170428
+*author:              CTK  luxq
 
-
+***************/
+extern uint8_t GetParticalDensity(uint16_t*pm25,uint16_t* pm100);
+static void DustDensityProcess(void)
+{
+  uint16_t dustValue = 0;
+	uint16_t dustSubValue = 0;
+	if(GetParticalDensity(&dustValue,&dustSubValue) == 0)
+	{
+		dustSum+= dustValue;
+		dustSubSum += dustSubValue;
+		dustSampleCnt++;
+		if(dustSampleCnt >= DUST_SMAPLE_CNT)
+		{
+		  dustSampleCnt = 0;
+		  inputValue->dustValue = dustSum/DUST_SMAPLE_CNT;
+		  inputMsg->inputMsg = INPUT_MSG_DUST;			
+		  inputMsg->inputMsgParam = (void*)&(inputValue->dustValue);			
+		  inputMsg->paramType = MSG_PARAM_SHORT;
+		  xQueueSend(inputMsgQueue, inputMsg, 0);
+		  inputValue->dustSubValue = dustSubSum/DUST_SMAPLE_CNT;
+		  inputMsg->inputMsg = INPUT_MSG_DUST_SUB;			
+		  inputMsg->inputMsgParam = (void*)&(inputValue->dustSubValue);			
+		  inputMsg->paramType = MSG_PARAM_SHORT;
+		  xQueueSend(inputMsgQueue, inputMsg, 0);
+		  dustSum = 0;
+		  dustSubSum = 0;
+		}
+	}else
+	{
+		I2CSensorGenerateStop();
+		inputMsg->inputMsg = INPUT_MSG_DFAULT;						
+		inputMsg->paramType = MSG_PARAM_NONE;
+		xQueueSend(inputMsgQueue, inputMsg, 0);
+	}
+}
+#endif
 void EnvironmentValueScanProcess(void)
 {
-	static uint8_t count;
 	if(CheckTickExpired(ms100Loop) == 1)
 	{
-		count++;
 		LuminaceDetection();
 		SpeedScan();
-		if(count >=10)
-		{
-			count = 0;
-			DustDensityProcess();
-			TempHumiScan();
-		}
 	}
 	if(CheckTickExpired(ms200Loop) == 1)
 	{
 		GasDetection();
+#ifndef FOR_JP
+	  DustDensityProcess();
+	  TempHumiScan();
+#endif
 	}
 }
 
@@ -396,19 +357,6 @@ static void BubbleSort(uint16_t*buffer,uint8_t length)
 	}
 
 }
-/****************
-* Function Name:      DustBufferSort
-* Description:        data in buffer sort 
-                      
-* Parameter:          buffer: data buffer which be sort;length data number
-* return:             none
-* Date:               20170428
-*author:              CTK  luxq
-***************/
-//void DustBufferSort(uint16_t* buffer,uint8_t length)
-//{
-//    BubbleSort(buffer,length);
-//}
 
 /****************
 
@@ -439,55 +387,6 @@ uint16_t GetAverPayloadFromBuffer(uint16_t* buffer,uint8_t maxLen,uint8_t ignore
 	 return aver;
 }
 
-
-/****************
-
-* Function Name:      DustValueProcess
-* Description:        get the average value of payload in the buffer
-                      
-* Parameter:          buffer: data buffer;maxLen the buffer length;ignoreLen ignore byte in buffer max and min
-* return:             the average value
-* Date:               20170428
-*author:              CTK  luxq
-
-***************/
-//static uint16_t DustValueProcess(uint16_t*buffer,uint16_t maxLen,uint8_t ignoreLen)
-//{
-//    return GetAverPayloadFromBuffer(buffer,maxLen,ignoreLen);
-//}
-
-/****************
-
-* Function Name:      GasValueProcess
-* Description:        get the average value of payload in the buffer
-                      
-* Parameter:          buffer: data buffer;maxLen the buffer length;ignoreLen ignore byte in buffer max and min
-* return:             the average value
-* Date:               20170428
-*author:              CTK  luxq
-
-***************/
-//static uint16_t GasValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen)
-//{
-//   return GetAverPayloadFromBuffer(buffer,maxLen,ignoreLen); 
-//}
-
-/****************
-
-* Function Name:      LumiValueProcess
-* Description:        get luninace average value of payload in the buffer
-                      
-* Parameter:          buffer: data buffer;maxLen the buffer length;ignoreLen ignore byte in buffer max and min
-* return:             the average value
-* Date:               20170428
-*author:              CTK  luxq
-
-***************/
-//static uint16_t LumiValueProcess(uint16_t*buffer, uint8_t maxLen,uint8_t ignoreLen)
-//{
-//   return GetAverPayloadFromBuffer(buffer,maxLen,ignoreLen); 
-//}
-
 /****************
 
 * Function Name:      CheckTickExpired
@@ -501,41 +400,44 @@ uint16_t GetAverPayloadFromBuffer(uint16_t* buffer,uint8_t maxLen,uint8_t ignore
 ***************/
 uint8_t CheckTickExpired(_sLOOPTIMER* timer)
 {
+	uint8_t ret = 0;
 	uint32_t currentTick;
 	portENTER_CRITICAL();
 	currentTick = xTaskGetTickCount();
 	portEXIT_CRITICAL();
-//	if(timer->nextTick > currentTick)
-//	{
-//		if(timer->nextTick - currentTick == 0)
-//		{
-//			timer->nextTick += timer->intervalTick;
-//			return 1;
-//		}
 
-//	}else 
-	if(timer->nextTick == currentTick)
-	{
-	timer->nextTick += timer->intervalTick;
-	return 1;
-	}
-	else if(timer->nextTick < currentTick)
-	{
-		if(timer->intervalTick>timer->nextTick)
-			return 0;
-		else 
+   if(currentTick>=timer->nextTick)//正常情况下时间到了
+	 {
+	 	
+		if(timer->nextTick>=timer->intervalTick)//正常情况下
 		{
-			timer->nextTick += timer->intervalTick;
-			return 1;
-		}
-//		if((0xffffffff-currentTick) - timer->nextTick <= timer->intervalTick)
-//		{
-//			timer->nextTick += timer->intervalTick;
-//			return 1;
-//		}
-     
-	}
-return 0;
+			timer->nextTick =currentTick+ timer->intervalTick;
+			ret = 1;
+		}else//下一个定时小于周期值说明大于0xffffffff循环了
+		{
+			if(currentTick<timer->intervalTick)//如果这个值小于一个周期说明定时时间到
+			{
+				timer->nextTick =currentTick+ timer->intervalTick;
+				ret = 1;
+			}else 
+			ret = 0;
+		}			
+		if(timer->nextTick == currentTick)
+			{							
+				timer->nextTick =currentTick+ timer->intervalTick;			
+				ret = 1;			
+			}
+	}else
+	 {
+		 if((timer->nextTick - currentTick > timer->intervalTick))//
+		 { 					
+			 timer->nextTick = currentTick+timer->intervalTick;
+			 ret = 1;
+		 }
+	 
+	 }
+	 return ret;
+
 }
 
 /****************
@@ -554,12 +456,6 @@ void LoopTimerInit(_sLOOPTIMER* timer,uint16_t interval)
 	timer->intervalTick = interval;
 }
 
-
-
-//void DustSensorGetResult(void)
-//{
-//   xSemaphoreGiveFromISR(inputDustSem, 0);
-//}
 
 
 

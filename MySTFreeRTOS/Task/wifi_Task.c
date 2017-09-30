@@ -1,3 +1,4 @@
+#ifndef FOR_JP
 #include "wifiTask.h"
 #include "fifo.h"
 #include "wifiProtocol.h"
@@ -17,6 +18,7 @@ extern void SendCmd2WifiModule(uint8_t cmd,const _sWIFI_CMD_PROC cmdarray[],\
 extern uint8_t CheckTickExpired(_sLOOPTIMER* timer);
 extern void LoopTimerInit(const _sLOOPTIMER* timer,uint16_t interval);
 void CheckFifoSendFirstData(_sFIFO* fifo);
+void TerminationReSendProcess(void);
 
 extern uint8_t* GetModeState(void);
 extern uint8_t* GetDustValue(void);
@@ -40,7 +42,7 @@ extern uint8_t* GetLuminRef(void);
 extern uint8_t* GetDustSen(void);
 extern uint8_t* GetTVOCRef(void);
 extern uint16_t GetFirmVersion(void);
-
+extern uint8_t GetUpdateFlag(void);
 
 
 extern xTaskHandle wifiTask;
@@ -62,12 +64,13 @@ xSemaphoreHandle semSendEnable;
 _sWIFI_SND_MSG* wifiSndMsg;
 _sWIFI_REC_MSG* wifiRecMsg;
 _sWIFI_FORMAT* wifiFrame;
+_sRETFIFO* retFifo;
 uint8_t* uartDataBuf;
 uint8_t uartSendBuf[WIFI_MAX_SEND_BUFF];
 _sFIFO* uartSendFifo;
 uint8_t netStatus = 0;
 uint8_t netStatus_tmp = 0;
-_eWIFI_PROCESS wifiState = WIFI_START;
+_eWIFI_PROCESS wifiState = WIFI_CHK_NET;
 _sLOOPTIMER* wifiLedLoop;
 
 const _sTERMI_FORMAT termination_info[]={
@@ -130,221 +133,244 @@ const char debug[]={"AT+NDGBL=1,1\r\n"};
 * Date:               20170520
 *author:              CTK  luxq
 ***************/
+
+typedef struct
+{
+	uint8_t wifiCom;
+	uint8_t wifirsp;
+}_sWIFIRSP;
+
+//typedef struct
+//{
+// uint8_t resendTermi;
+//}_sRESNDTERMI;
+
+
+_sWIFIRSP msgWaite;
+//_sRESNDTERMI reSndTerm;
+void WifiSetMsgRsp(uint8_t msgType,uint8_t rspType)
+{
+	msgWaite.wifiCom = msgType;
+	msgWaite.wifirsp = rspType;
+}
+void WifiMsgRspClr(void)
+{
+	msgWaite.wifirsp = 0;
+}
+uint8_t CheckWaiteMsg(void)
+{
+   return msgWaite.wifiCom;
+}
+uint8_t timeout = 0;
 void WIFITask(void* arg)
 {
 	uint8_t command = 0;// just make compiler happy
 	uint8_t chkNetCnt = 0;
 	uint8_t* dataPointer;
+	 msgWaite.wifiCom = 0;
     WifiHardwareInit();
    for(;;)
    {
-	switch(wifiState)
-	{
-		case WIFI_START:
-		  if(xSemaphoreTake(semRecComplete,2000))//2 second to check module quarity
-			{
-			if(ParseWifiDatas(wifiFrame))
-			{
-			  if(wifiFrame->cmd == CMD_GET_NET)
-				{
-				 if(wifiFrame->data[0] == 2)
-				 {
-				   wifiState = WIFI_CHK_NET;
-					 break;
-				 }
-				}
-			}
-		}else //module is bad
-			{
-			wifiState = WIFI_CHK_NET;			
-			}
-			break;
-    case WIFI_CHK_NET:
-		SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
-	  if(xSemaphoreTake(semRecComplete,1000))
-	  {
-       if(ParseWifiDatas(wifiFrame))
-			 {
-			 if(wifiFrame->cmd == CMD_GET_NET)
-			 {
-			 	netStatus = (wifiFrame->data[1]<<1)|wifiFrame->data[0];
-				netStatus_tmp = netStatus;
-				wifiRecMsg->wifiMsg = WIFI_MSG_NET;
-				wifiRecMsg->length= 1;
-				wifiRecMsg->wifiMsgParam = &netStatus;
-				xQueueSend(wifiRecQueue,wifiRecMsg,0);
-				if(netStatus == 1)
-					wifiState = WIFI_VER_PID;
-			 else if(netStatus == 3)// mcu reset but wifi not reset 
-			 {
-			  wifiState = WIFI_VER_PID;
-				 break;
-			 }
-			 }else if(wifiFrame->data[0] == 0x02)// start up
-			 {
-				 
-		   }
-	    }
-			 vTaskDelay(100);
-		}else // 1000 ms no respond 
-		{
-       
-
-		}
-		if(xQueueReceive(wifiSndQueue, wifiSndMsg, 0))
-		{
-			command = wifiSndMsg->propMsg;
-			switch(command)
-			{           	
-				case WIFI_SET_CONN:
-					SendCmd2WifiModule(CMD_SET_CONNECT,sendCmdArray,uartSendBuf,uartSendFifo);
-					if(xSemaphoreTake(semRecComplete, 1000))
-					{ 
-						if(ParseWifiDatas(wifiFrame))
-						{
-							if(wifiFrame->cmd == CMD_SET_CONNECT)	// respond right												
-							{
-							}
-						}
-					}					
-				break;
-
-				case WIFI_REBOOT:
-					WIFI_RST_ENBALE();
-					vTaskDelay(5);
-					WIFI_RST_DISABLE();
-				break;
-
-			  default:
-				break;
-				}
-		
-		}
-		
-	break;
-	case WIFI_VER_PID:
-		SendCmd2WifiModule(CMD_GET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);
-	  if(xSemaphoreTake(semRecComplete, 1000))
-		{
-			if(ParseWifiDatas(wifiFrame))
-			{
-				if(wifiFrame->cmd == CMD_GET_PID_KEY)
-				{
-		     if(strncmp((const char*)(&wifiFrame->data[0]),productId,32) == 0)
-		     {
-		       if(strncmp((const char*)(&wifiFrame->data[32]),productKey,32) == 0)
-			     {
-						 ClearReceiveBuffer();
-						 SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
-				     wifiState = WIFI_NORMAL_OP;
-					 netStatus = 0x01;
-					 netStatus_tmp = 0x01;
-			       break;
-			     }else
-			     {
-			       SendCmd2WifiModule(CMD_SET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);
-			       if(xSemaphoreTake(semRecComplete, 1000))
-				     {
-				        if(ParseWifiDatas(wifiFrame))
-								{
-								   if(wifiFrame->cmd == CMD_SET_PID_KEY)
-										 ClearReceiveBuffer();
-										 break;
-								}
-				     }
-			    }  
-		    }else
-		    {
-		      SendCmd2WifiModule(CMD_SET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);
-					if(xSemaphoreTake(semRecComplete, 100))
-					{
-					  if(ParseWifiDatas(wifiFrame))
+		 switch(wifiState)
+		 {
+			 case WIFI_CHK_NET:
+				   if(netStatus >=0x01)
+				   {
+				   	 timeout = 0;
+					 wifiState = WIFI_VER_PID;
+				   }
+				   else
+				   {
+				   	timeout++;
+					if(timeout>=10)
 					  {
-						   if(wifiFrame->cmd == CMD_SET_PID_KEY)
-						   break;
-					  }
-				  }
-		    }
-	    }else //not get pid and pkey respond
-			{
-				if(xSemaphoreTake(semRecComplete, 1000))
-					;
-				
-			}
-		}else
-		vTaskDelay(1000);
-		}else// maybe the module is not good 
-		{
-			vTaskDelay(1000);
-		}
-		ClearReceiveBuffer();
-	break;
-	case WIFI_NORMAL_OP:
-		if(xSemaphoreTake(semRecComplete, 100))
+						timeout = 0;
+					   if(CheckWaiteMsg()==0)
+					     SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
+					   }
+				   }
+				 break;
+		   case WIFI_VER_PID:
+				 	if(CheckWaiteMsg()==0)//等待上一个命令回应或者超时
+					{				  
+						SendCmd2WifiModule(CMD_GET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);			    
+						WifiSetMsgRsp(CMD_GET_PID_KEY,0);						
+					  wifiState = WIFI_NORMAL_OP;
+				 }												         					
+				 break;
+			 case WIFI_NORMAL_OP:
+				 if(msgWaite.wifiCom != 0)
+				 {
+					 switch(msgWaite.wifiCom)
+					 {					
+						 case CMD_GET_PID_KEY:
+							 if(msgWaite.wifirsp == 0)// 验证失败
+							 {
+							   msgWaite.wifiCom = 0;	
+							   wifiState = WIFI_VER_PID;	
+							 }
+							 else 
+							 {
+								 timeout++;
+								 if(timeout == 10)
+								 {
+									 timeout = 0;
+									 msgWaite.wifiCom = 0;							 
+								 }							 
+							 }
+							 break;
+						 case CMD_SET_CONNECT:
+							 if(msgWaite.wifirsp == 0)// 没有回应
+							   wifiState = WIFI_NORMAL_OP;	
+							 else if(msgWaite.wifirsp == 1)
+							 {						 
+							    msgWaite.wifiCom = 0;
+								  msgWaite.wifirsp = 0;
+							 }
+							 else 
+							 {
+								 timeout++;
+								 if(timeout == 10)
+								 {
+									 timeout = 0;
+									 msgWaite.wifiCom = 0;										 
+								 }
+							 
+							 }
+							 break;	
+						 case CMD_RESET_WIFI:
+						 	 if(msgWaite.wifirsp >= 0x01)
+						 	 {
+								wifiState = WIFI_VER_PID;
+								msgWaite.wifiCom = 0;
+						 	 }
+						 	break;
+						 case CMD_GET_NET:
+						 case CMD_SND_TERM_DATA:     					 							 						                					 							 
+						 case CMD_SND_SEV_TERM_DATA: 
+							 if(msgWaite.wifirsp >= 0x01)
+								 WifiSetMsgRsp(0,0);
+							 else 
+							 {
+								 timeout++;
+								 if(timeout == 10)
+								 {
+									 timeout = 0;
+									 msgWaite.wifiCom = 0;										 
+								 }							 
+							 }
+							 TerminationReSendProcess();
+							 break;
+						  case CMD_SND_ALL_TERM_DATA: 
+								if(msgWaite.wifirsp >= 1)
+								{
+									TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
+									WifiSetMsgRsp(0,0);
+								}else 
+							 {
+								 timeout++;
+								 if(timeout == 10)
+								 {
+									 timeout = 0;
+									 msgWaite.wifiCom = 0;							 
+								 }
+							 
+							 }
+							 break;
+							 case CMD_SET_PID_KEY:
+									 timeout = 0;
+									 msgWaite.wifiCom = 0;	
+								break;
+						 default:
+							 			
+					 break;
+					 }
+				 }
+				 else
+				 {
+
+				 }
+				 break;
+			 default:
+		 break;
+		 }
+		if(xSemaphoreTake(semRecComplete,100))
 		{
            if(ParseWifiDatas(wifiFrame))
            {
               command = wifiFrame->cmd;  
 						 switch(command)  
 						 {                   
-							 case CMD_GET_MAC: // receive mac address
-				   	
+							 case CMD_GET_MAC: // receive mac address		   	
 							 break;                   
 							 case CMD_GET_NET:
-								 netStatus = (wifiFrame->data[1]<<1)|wifiFrame->data[0];					 
-							   if((netStatus == NET_CLOUD)&&(netStatus_tmp != NET_CLOUD))//first connect to cloud					 
-							     {
-							   	    TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_ALL_TERM_DATA);
-					      	    if(xSemaphoreTake(semRecComplete, 1000))
-									    { 
-										
-										    if(ParseWifiDatas(wifiFrame))
-										    {
-												if(wifiFrame->cmd == CMD_SND_ALL_TERM_DATA)	// respond right
-												{
-												TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
-													//break;	
-												}													
-												else// respond error
-												{
-
-												}
-										     }
-											else// wifi frame error
-											{
-
-
-											}
-									    
-									   }
-							     }					 
-							  if((netStatus_tmp == NET_CLOUD)&&(netStatus != NET_CLOUD))// off line					 
-							  {
-					 
-							  }else if(netStatus == NET_OFFLINE)// 				 
-							  {
-             				 
-							  }													
+							 	netStatus = 0;
+								if(wifiFrame->data[1] >= 0x02)//								
+								  break;
+								netStatus = (wifiFrame->data[1]<<1)|wifiFrame->data[0];					 											
 								wifiRecMsg->wifiMsg = WIFI_MSG_NET;
 								wifiRecMsg->length= 1;
-								wifiRecMsg->wifiMsgParam =  &netStatus;
+								wifiRecMsg->wifiMsgParam = &netStatus;
 								xQueueSend(wifiRecQueue,wifiRecMsg,0);			
-							  netStatus_tmp = netStatus;	
-							  if(xSemaphoreTake(semWifiVariable,portMAX_DELAY))								
-							  	ClearReceiveBuffer();								
+							    WifiSetMsgRsp(0,0);
+							  if(xSemaphoreTake(semWifiVariable,2000))								
+							  	ClearReceiveBuffer();		
+							  if(wifiState> WIFI_VER_PID)
+								{
+							  if((netStatus == NET_CLOUD)&&(netStatus_tmp != NET_CLOUD))//first connect to cloud							
+								{																
+									//if(CheckWaiteMsg() == 0)																
+									{									   							
+										WifiSetMsgRsp(CMD_SND_ALL_TERM_DATA,0);																	      								
+										TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_ALL_TERM_DATA);														
+									}												
+								}
+								netStatus_tmp = netStatus;	
+							 }								
 							 break;			   
-							 case CMD_GET_PID_KEY:				   	
+							 case CMD_GET_PID_KEY:	
+								 WifiSetMsgRsp(0,0);
+								 if(strncmp((const char*)(&wifiFrame->data[0]),productId,32) == 0)		     
+								 {	       
+									 if(strncmp((const char*)(&wifiFrame->data[32]),productKey,32) == 0)			     
+									 {						 
+										 ClearReceiveBuffer();
+										 WifiSetMsgRsp(CMD_GET_NET,0);
+										 SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);				     
+										 wifiState = WIFI_NORMAL_OP;					 		       
+										 break;			     
+									 }
+									 else
+									 {
+									 	if(CheckWaiteMsg() == 0)
+									 	{
+									 	  WifiSetMsgRsp(CMD_SET_PID_KEY,0);
+									 	  SendCmd2WifiModule(CMD_SET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);  
+									 	}
+									 }
+								 }else
+								 {
+									 if(CheckWaiteMsg() == 0)
+									 	{
+									 	  WifiSetMsgRsp(CMD_SET_PID_KEY,0);
+									 	  SendCmd2WifiModule(CMD_SET_PID_KEY,sendCmdArray,uartSendBuf,uartSendFifo);  
+									 	}
+								 
+								 }
+								 
 							 break;                   					 
 							 case CMD_SET_PID_KEY:
+								 
 				   	
 							 break;                   					 
 							 case CMD_SET_CONNECT:
-							 	
+								 msgWaite.wifirsp = 1;
 							 break;                   					 
 							 case CMD_REBOOT_WIFI:
 				   	
 							 break;                   					 
 							 case CMD_RESET_WIFI:
+							 	msgWaite.wifirsp = 1;
 				   	
 							 break;                   					 
 							 case CMD_GET_FIREWARE:
@@ -368,28 +394,17 @@ void WIFITask(void* arg)
 							 wifiRecMsg->length = *(dataPointer+2);
 							 wifiRecMsg->wifiMsgParam = dataPointer+3;
 							 xQueueSend(wifiRecQueue,wifiRecMsg,1);		
-						   if(xSemaphoreTake(semWifiVariable,portMAX_DELAY))
+						   if(xSemaphoreTake(semWifiVariable,2000))
 						   	ClearReceiveBuffer();	
 							 WifiRecRespond();
 							 break;                   					 
-							 case CMD_SND_TERM_DATA:
-							 break;                   					 
-							 case CMD_SND_ALL_TERM_DATA:
-							 break;                   					 
+							 case CMD_SND_TERM_DATA:     					 
+							 case CMD_SND_ALL_TERM_DATA:   
 							 case CMD_SND_SEV_TERM_DATA:
-							 if(wifiFrame->data[0] == 0x01)//only 0x01 mean just upload to router
-							 {								 
-							 if(xSemaphoreTake(semRecComplete, 1000))
-							 {
-							  if(ParseWifiDatas(wifiFrame))
-								{
-								 if(wifiFrame->data[0] == 0x02)// data transmit to cloud
-								 {
-								 
-								 }
-								}
-							 }
-						   }
+							 if(wifiFrame->data[0] == 0x00)//only 0x01 mean just upload to router                               
+							   msgWaite.wifirsp = 1;						 
+							 else if(wifiFrame->data[0] == 0x02)
+								 msgWaite.wifirsp = 2;
 							 break;
 							 case CMD_ASK_UPDATE:// 0x30 command 
 							 dataPointer = wifiFrame->data;
@@ -403,27 +418,14 @@ void WIFITask(void* arg)
 							 }
 
 							 break;
-						 }						 							 
+						 						 							 
 					 }		
-		}else
-		{
-			chkNetCnt++;
-			if(chkNetCnt == 50)			    
-			{					
-				if(xSemaphoreTake(semSendEnable, 2))
-						GetUpdateStatus();
-			}
-			if(chkNetCnt == 100)// two second to check net satus
-			{
-			chkNetCnt = 0;
-		   if(xSemaphoreTake(semSendEnable, 2))
-		   SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
-			}
 		}
-		
-		if(xQueueReceive(wifiSndQueue, wifiSndMsg, 0))
+	}
+
+		if(xQueueReceive(wifiSndQueue, wifiSndMsg, 5))
 		{
-			command = wifiSndMsg->propMsg;
+			command = wifiSndMsg->propMsg;	
 			switch(command)
 			{           
 				case WIFI_UP_MODE:
@@ -436,84 +438,48 @@ void WIFITask(void* arg)
 				case WIFI_UP_HUMI:
 				case WIFI_UP_AQI:
 				case WIFI_UP_FAULT:
+				case WIFI_UP_SPEED:
+				case WIFI_UP_LUMI:
+				case WIFI_UP_FILTER:
 					if(netStatus < 1)
 						break;
-					TransmitTermData(command - 1,termination_info,uartSendBuf,uartSendFifo);
-					if(xSemaphoreTake(semRecComplete, 100))
-						{
-							if(ParseWifiDatas(wifiFrame))
-								{
-									if(wifiFrame->cmd == CMD_SND_TERM_DATA)
-										break;
-									}
-							}
-					break;
-//				case WIFI_OPENDEBUG:
-//					dataPointer = (uint8_t*)debug;
-//				  while(*dataPointer !=0)
-//					{
-//						PushInFifo(uartSendFifo,*dataPointer);
-//						dataPointer++;
-//					}
-//					CheckFifoSendFirstData(uartSendFifo);
-//					break;
+					if(netStatus_tmp  >= 0x01)
+					{
+					  if(CheckWaiteMsg()==0)
+					  {
+			             WifiSetMsgRsp(CMD_SND_TERM_DATA,0);
+					     TransmitTermData(command - 1,termination_info,uartSendBuf,uartSendFifo);
+					  }else//针对数据端点进行重发
+					  {
+					  	//reSndTerm.resendTermi = command;
+						PushInRetFifo(retFifo,command);
+					  }
 
-/*			  case WIFI_UP_DUST:
-			  	TransmitTermData(TERM_DUST,termination_info,uartSendBuf,uartSendFifo);
-				break;
-				case WIFI_UP_DUST_SUB:
-
-					TransmitTermData(TERM_DUST_SUB,termination_info,uartSendBuf,uartSendFifo);
+					}
 					break;
-			  case WIFI_UP_GAS:
-			  	TransmitTermData(TERM_TVOC,termination_info,uartSendBuf,uartSendFifo);
-			 	break;
-			  case WIFI_UP_LED:
-			  	TransmitTermData(TERM_LED,termination_info,uartSendBuf,uartSendFifo);
-			 	break;
-				case WIFI_UP_TIMING:
-					TransmitTermData(TERM_TIMING,termination_info,uartSendBuf,uartSendFifo);
-					break;
-				case WIFI_UP_TEMP:
-					TransmitTermData(TERM_TEMP,termination_info,uartSendBuf,uartSendFifo);
-					break;
-				case WIFI_UP_HUMI:
-					TransmitTermData(TERM_HUMI,termination_info,uartSendBuf,uartSendFifo);
-					break;
-				case WIFI_UP_AQI:
-					TransmitTermData(TERM_AQI,termination_info,uartSendBuf,uartSendFifo);
-					break;*/
-			  case WIFI_UP_LOCK:
-			 	break;
-			  case WIFI_UP_SPEED:
-			 	break;
 			  case WIFI_UP_VERSION:
 			 	break;
 			  case WIFI_UP_ALL:
-					TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
-				  if(xSemaphoreTake(semRecComplete, 1000))
-					{ 
-						if(ParseWifiDatas(wifiFrame))
-						{
-							if(wifiFrame->cmd == CMD_SND_SEV_TERM_DATA)	// respond right												
-							{
-							}
-						}
-					}
+			  		if(netStatus_tmp  == 0x03)
+					{
+					  if(CheckWaiteMsg()==0)
+					  {
+							 WifiSetMsgRsp(CMD_SND_SEV_TERM_DATA,0);
+					     TransmitAllTermData(termination_info,uartSendBuf,uartSendFifo,CMD_SND_SEV_TERM_DATA);
+					  }
+			  		}
 					break;
 				case WIFI_SET_CONN:
-					SendCmd2WifiModule(CMD_SET_CONNECT,sendCmdArray,uartSendBuf,uartSendFifo);
-					if(xSemaphoreTake(semRecComplete, 1000))
-					{ 
-						if(ParseWifiDatas(wifiFrame))
-						{
-							if(wifiFrame->cmd == CMD_GET_PID_KEY)	// respond right												
-							{
-							}
-						}
-					}					
+					//if(CheckWaiteMsg()==0)
+					//{
+						 WifiSetMsgRsp(CMD_SET_CONNECT,0);
+					   SendCmd2WifiModule(CMD_SET_CONNECT,sendCmdArray,uartSendBuf,uartSendFifo);
+					//}
 				break;
-
+				case WIFI_SET_DEFAULT:
+					WifiSetMsgRsp(CMD_RESET_WIFI,0);
+					SendCmd2WifiModule(CMD_RESET_WIFI,sendCmdArray,uartSendBuf,uartSendFifo);
+					break;
 				case WIFI_REBOOT:
 					WIFI_RST_ENBALE();
 					vTaskDelay(5);
@@ -521,15 +487,49 @@ void WIFITask(void* arg)
 				break;
 
 			  default:
-				break;
-				}
+				break;				
+			}
 		}
-	break;
-	default:
-		break;
-		} 
-   }
+			   chkNetCnt++;			 
+			if(chkNetCnt == 50)			    
+			{					
+				if(xSemaphoreTake(semSendEnable, 2)&&(GetUpdateFlag()))
+						GetUpdateStatus();
+			}
+			if(chkNetCnt == 100)// two second to check net satus
+			{
+			chkNetCnt = 0;
+		   if(xSemaphoreTake(semSendEnable, 2))				
+			 if(CheckWaiteMsg() == 0)			 
+			 {
+									 	  
+				 WifiSetMsgRsp(CMD_GET_NET,0); 
+				 SendCmd2WifiModule(CMD_GET_NET,sendCmdArray,uartSendBuf,uartSendFifo);
+			}
+		  }
+			
+
+	 }
+	 }
+
+void TerminationReSendProcess(void)
+{
+	uint8_t popData;
+	if(retFifo->count>0)
+	{
+		if(PopFromRetFifo(retFifo,&popData)==FIFO_NORMAL)
+		{
+			if(CheckWaiteMsg()==0)
+				{
+					WifiSetMsgRsp(CMD_SND_TERM_DATA,0);
+					TransmitTermData(popData - 1,termination_info,uartSendBuf,uartSendFifo);
+					//reSndTerm.resendTermi = 0;
+			}else
+		PushInRetFifo(retFifo,popData);
+		}
+    }
 }
+
 
 /****************
 * Function Name:      WifiVariablesInit
@@ -544,14 +544,16 @@ void WifiVariablesInit(void)
 {
 	wifiRecQueue = xQueueCreate(WIFI_REC_QUEUE_LEN, sizeof(_sWIFI_REC_MSG));
 	wifiSndQueue = xQueueCreate(WIFI_SND_QUEUE_LEN, sizeof(_sWIFI_SND_MSG));
-	semRecComplete = xSemaphoreCreateCounting(10,0);
-	semSendEnable = xSemaphoreCreateBinary();
+	semRecComplete = xSemaphoreCreateBinary();//xSemaphoreCreateCounting(10,0);//xSemaphoreCreateBinary();//
+	semSendEnable = xSemaphoreCreateCounting(5,0);
 	wifiRecMsg = pvPortMalloc(sizeof(_sWIFI_REC_MSG));
 	wifiSndMsg = pvPortMalloc(sizeof(_sWIFI_SND_MSG));
 	wifiFrame = pvPortMalloc(sizeof(_sWIFI_FORMAT));
 	uartSendFifo = pvPortMalloc(sizeof(_sFIFO));
 	wifiLedLoop = pvPortMalloc(sizeof(_sLOOPTIMER));
+	retFifo = pvPortMalloc(sizeof(_sRETFIFO));
 	LoopTimerInit(wifiLedLoop,100);
+	RetFifoInit(retFifo);
 }
 
 /****************
@@ -616,6 +618,12 @@ void USART2_IRQHandler(void)
 		wifiFrame->length|=recData;
 		recCnt = 0;
 		uartState = WIFI_UART_CMD;
+		if(wifiFrame->length>=0xff)
+		{
+		  wifiFrame->length = 0;	
+			uartState = WIFI_UART_HEAD;
+			recCnt = 0;
+		}
 	}
    break;
    case WIFI_UART_CMD:  	
@@ -656,6 +664,9 @@ void USART2_IRQHandler(void)
           USART_SendData(WIFI_UART,sendData);
 	if((sendData == END)&&(uartSendFifo->count == 0))
 		xSemaphoreGiveFromISR(semSendEnable,&pxHigherPriorityTaskWoken);
+  }else
+  {
+  	xSemaphoreGiveFromISR(semSendEnable,&pxHigherPriorityTaskWoken);
   }
  }
 USART2->ICR = 0xffffffff;
@@ -1070,5 +1081,5 @@ void GetUpdateStatus(void)
 }
 
 
-
+#endif
 
