@@ -181,7 +181,13 @@ void SendCmd2WifiModule(unsigned char cmd,const _sWIFI_CMD_PROC cmdarray[],unsig
 	pointer = databuff;
 	memset(pointer,0x00,dataLen);
   }
+	if(chksum>=0xfd)
+	{
+		chksum-=0x80;
   PushInFifo(sendfifo,chksum);
+	PushInFifo(sendfifo,0xfd);
+	}else
+	PushInFifo(sendfifo,chksum);
   PushInFifo(sendfifo,END);
   CheckFifoSendFirstData(sendfifo);
 }

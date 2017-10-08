@@ -929,6 +929,11 @@ void TransmitTermData(uint8_t term_id,const _sTERMI_FORMAT* datacmd,uint8_t* sen
 	 PushInFifo(sendfifo, *dataPointer);
      dataPointer++;
    }
+	 if(checksum>=0xfd)
+	 {
+		 PushInFifo(sendfifo,(checksum- 0x80));
+		 PushInFifo(sendfifo,0xfd);
+	 }else
    PushInFifo(sendfifo,checksum);
    PushInFifo(sendfifo,END);
 	 CheckFifoSendFirstData(sendfifo);
@@ -989,6 +994,11 @@ void TransmitAllTermData(const _sTERMI_FORMAT* datacmd,uint8_t* sendbuffer,_sFIF
 	 PushInFifo(sendfifo, *dataPointer);
      dataPointer++;
    }
+	 if(checksum>=0xfd)
+	 {
+		 PushInFifo(sendfifo,(checksum- 0x80));
+		 PushInFifo(sendfifo,0xfd);
+	 }else
    PushInFifo(sendfifo,checksum);
    PushInFifo(sendfifo,END);
 	 CheckFifoSendFirstData(sendfifo);
@@ -1014,6 +1024,11 @@ void WifiRecRespond(void)
 	PushInFifo(uartSendFifo,0x00);   
 	PushInFifo(uartSendFifo, 0x02);	 
 	PushInFifo(uartSendFifo,sendType);
+	if(checksum>=0xfd)
+	 {
+		 PushInFifo(uartSendFifo,(checksum- 0x80));
+		 PushInFifo(uartSendFifo,0xfd);
+	 }else
 	PushInFifo(uartSendFifo,checksum);
 	PushInFifo(uartSendFifo,END);
 	CheckFifoSendFirstData(uartSendFifo);
@@ -1075,6 +1090,11 @@ void GetUpdateStatus(void)
 	PushInFifo(uartSendFifo,(uint8_t)(description>>16));
 	PushInFifo(uartSendFifo,(uint8_t)(description>>8));
 	PushInFifo(uartSendFifo,(uint8_t)(description));
+	if(checksum>=0xfd)
+	 {
+		 PushInFifo(uartSendFifo,(checksum- 0x80));
+		 PushInFifo(uartSendFifo,0xfd);
+	 }else
 	PushInFifo(uartSendFifo,checksum);
 	PushInFifo(uartSendFifo,END);
 	CheckFifoSendFirstData(uartSendFifo);

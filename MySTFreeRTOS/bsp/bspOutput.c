@@ -208,7 +208,6 @@ void FanTimerInit(void)
 	TIM_OCInitTypeDef TIM_OCInitstructure;
 	TIM_ICInitTypeDef TIM_ICInitstructure;
 
-
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 	TIM_DeInit(TIM1);
 	TIM_TimeBaseStructInit(&TIM_TimebaseInitStructure);

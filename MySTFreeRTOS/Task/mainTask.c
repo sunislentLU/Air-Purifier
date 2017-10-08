@@ -910,9 +910,11 @@ static void FilterLiveCount(void)
 			if(globalParameter.workingTime >= 0xFFFE)
 				globalParameter.workingTime = 0xfffE;
 			   runningValue.filterState = 100-((globalParameter.filterVar.filterHoursCnt*100)/globalParameter.filterVar.maxFilterHours);
-			   // SaveGlobalParameter();
+			    SaveGlobalParameter();
+#ifndef FOR_JP
 			   	mWifiSndMsg->propMsg = WIFI_UP_FILTER;
 				xQueueSend(wifiSndQueue, mWifiSndMsg, 1);
+#endif
 				if(globalParameter.filterVar.filterHoursCnt>= globalParameter.filterVar.maxFilterHours)
 				{
 					runningValue.filterDis= FILTER_STATE_CHANGED;
